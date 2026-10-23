@@ -1,7 +1,7 @@
 /* Elloin Pedidos — guarda o app no aparelho para abrir sem internet.
    Ao publicar uma versão nova, troque o número da VERSAO para os aparelhos atualizarem. */
-var VERSAO = 'elloin-pedidos-1';
-var ARQUIVOS = ['./', './index.html', './config.js', './manifest.webmanifest', './icone-180.png', './icone-192.png', './icone-512.png'];
+var VERSAO = 'elloin-pedidos-2';
+var ARQUIVOS = ['./', './index.html', './config.js', './manifest.webmanifest', './icone-180.png', './icone-192.png', './icone-512.png', './logo.png', './logo-marca.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSAO).then(function (c) { return c.addAll(ARQUIVOS); }).then(function () { return self.skipWaiting(); }));
