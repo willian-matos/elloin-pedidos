@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14325C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Elloin Pedidos">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="icon" href="icone-192.png">
+<title>Elloin · Pedidos</title>
+<style>
+  /* compatível com iPhone/iPad (iOS 12+), Android 7+ e computador */
+  :root{
+    --navy:#14325C; --navy2:#0E2443; --ouro:#C9A227; --ouro-claro:#F6EDD0;
+    --fundo:#F3F5F9; --card:#FFFFFF; --linha:#DCE2EC; --texto:#1C2533; --suave:#5B6678;
+    --ok:#1E7B4A; --ok-bg:#E3F4EA; --erro:#B42318; --erro-bg:#FDECEA; --pend:#9A6700; --pend-bg:#FFF4D6;
+    --info:#1F5FA8; --info-bg:#E5EFFA; --raio:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--fundo);color:var(--texto);font:15px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  button,input,select,textarea{font:inherit;color:inherit}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{-webkit-tap-highlight-color:rgba(0,0,0,0)}
+  .oculto{display:none!important}
+  header{background:var(--navy);color:#fff;position:-webkit-sticky;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  .topo{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 16px}
+  .marca{font-weight:700;letter-spacing:.3px;font-size:17px}
+  .marca small{display:block;font-weight:400;opacity:.75;font-size:12px;letter-spacing:0}
+  .marca b{color:var(--ouro)}
+  .topo .esp{flex:1}
+  .quem{font-size:13px;opacity:.9;text-align:right}
+  .sairbtn{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+  nav.abas{max-width:980px;margin:0 auto;display:flex;gap:4px;padding:0 10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  nav.abas button{background:none;border:0;color:#C9D4E5;padding:10px 12px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-weight:600}
+  nav.abas button.ativo{color:#fff;border-bottom-color:var(--ouro)}
+  .bolha{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:var(--ouro);color:var(--navy2);font-size:12px;line-height:20px;text-align:center;margin-left:4px}
+  main{max-width:980px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--linha);border-radius:var(--raio);padding:16px;margin-bottom:14px}
+  h2{font-size:18px;margin:0 0 12px}
+  h3{font-size:15px;margin:0 0 8px}
+  .grade{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+  .grade .tudo{grid-column:1/-1}
+  @media (max-width:640px){.grade{grid-template-columns:1fr}.quem{display:none}}
+  label{display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px}
+  label .obr{color:var(--erro)}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:9px;background:#fff;min-height:44px;font-size:16px;-webkit-appearance:none;appearance:none}
+  select{background-image:linear-gradient(45deg,transparent 50%,#5B6678 50%),linear-gradient(135deg,#5B6678 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+  input[type=date]{min-width:0;display:block}
+  input[type=file]{padding:8px;font-size:14px}
+  input:focus,select:focus,textarea:focus{outline:2px solid #9DB7DE;border-color:#7F9FCF}
+  textarea{min-height:64px;resize:vertical}
+  .dica{font-size:12px;color:var(--suave);margin-top:4px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;min-height:44px;text-decoration:none}
+  .btn:disabled{opacity:.55;cursor:wait}
+  .prim{background:var(--navy);color:#fff}
+  .ouro{background:var(--ouro);color:var(--navy2)}
+  .verde{background:var(--ok);color:#fff}
+  .verm{background:var(--erro);color:#fff}
+  .claro{background:#EEF2F8;color:var(--navy)}
+  .whats{background:#1FA855;color:#fff}
+  .linkbtn{background:none;border:0;color:var(--info);cursor:pointer;padding:6px 0;font-weight:600}
+  .acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .acoes .btn{flex:1 1 160px}
+  /* itens */
+  .item{display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr 36px;gap:8px;align-items:end;padding:10px 0;border-bottom:1px dashed var(--linha)}
+  .item .tot{font-weight:700;padding:10px 0;text-align:right;white-space:nowrap}
+  .item .x{background:none;border:0;color:var(--erro);font-size:22px;cursor:pointer;height:44px}
+  @media (max-width:640px){
+    .item{grid-template-columns:1fr 1fr;}
+    .item .mod{grid-column:1/-1}
+    .item .tot{text-align:left}
+  }
+  .seg{display:flex;flex-wrap:wrap;margin:0 -6px -6px 0}
+  .seg button{flex:1 1 auto;min-width:64px;min-height:46px;margin:0 6px 6px 0;border:1px solid var(--linha);background:#fff;border-radius:10px;font-weight:700;font-size:16px;color:var(--navy);cursor:pointer;padding:8px 10px}
+  .seg button.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .numauto{background:var(--ouro-claro);border-radius:10px;padding:10px 12px;font-weight:700;min-height:44px;display:flex;align-items:center}
+  .numauto small{font-weight:400;color:var(--suave);margin-left:6px}
+  .item label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .total span{white-space:nowrap}
+  .total span:first-child{white-space:normal;margin-right:12px}
+  @media (max-width:360px){ .total{font-size:15px;padding:12px 10px} }
+  .total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:12px 14px;background:var(--ouro-claro);border-radius:10px;font-weight:700;font-size:17px}
+  /* listas */
+  .ped{border:1px solid var(--linha);border-radius:var(--raio);background:#fff;padding:14px;margin-bottom:12px}
+  .ped .cab{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  .ped .tit{font-weight:700;font-size:16px}
+  .ped .sub{color:var(--suave);font-size:13px}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
+  .p-Pendente{background:var(--pend-bg);color:var(--pend)}
+  .p-Aprovado{background:var(--info-bg);color:var(--info)}
+  .p-Lançado{background:var(--ok-bg);color:var(--ok)}
+  .p-Recusado{background:var(--erro-bg);color:var(--erro)}
+  .p-Cancelado{background:#ECEEF2;color:#6B7280}
+  .novo{background:var(--ouro);color:var(--navy2)}
+  table.it{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+  table.it th{font-size:12px;color:var(--suave);text-align:left;font-weight:600;border-bottom:1px solid var(--linha);padding:6px 4px}
+  table.it td{padding:6px 4px;border-bottom:1px solid #EEF1F6}
+  table.it .n{text-align:right;white-space:nowrap}
+  .motivo{margin-top:10px;background:var(--erro-bg);color:#7A1A12;border-radius:9px;padding:10px 12px}
+  .aviso{margin-top:10px;background:var(--pend-bg);color:#6B4A00;border-radius:9px;padding:10px 12px;font-size:13px}
+  .dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px;margin-top:10px;font-size:13px}
+  .dados b{display:block;color:var(--suave);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .filtros>*{flex:1 1 160px}
+  .vazio{text-align:center;color:var(--suave);padding:28px 10px}
+  /* login */
+  .login{max-width:380px;margin:8vh auto;padding:0 16px}
+  .login .logo{text-align:center;margin-bottom:18px;color:var(--navy)}
+  .login .logo div{font-size:26px;font-weight:800;letter-spacing:.5px}
+  .login .logo span{color:var(--ouro)}
+  /* mensagens */
+  .msg{position:fixed;left:50%;bottom:18px;bottom:calc(18px + env(safe-area-inset-bottom));-webkit-transform:translateX(-50%);transform:translateX(-50%);background:var(--navy2);color:#fff;padding:12px 16px;border-radius:10px;max-width:92vw;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  .msg.erro{background:var(--erro)}
+  .modal{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(14,36,67,.55);display:flex;align-items:center;justify-content:center;z-index:40;padding:14px}
+  .modal .caixa{background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:92vh;max-height:calc(100% - 10px);overflow:auto;-webkit-overflow-scrolling:touch;padding:18px}
+  .modal .caixa.larga{max-width:900px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .chips button{border:1px solid var(--linha);background:#F7F9FC;border-radius:18px;padding:6px 10px;cursor:pointer;font-size:13px}
+  .carregando{text-align:center;padding:60px 10px;color:var(--suave)}
+  .anexo-ok{color:var(--ok);font-weight:600;font-size:13px;margin-top:6px}
+  .semgap .topo>*{margin-left:12px}.semgap .topo>*:first-child{margin-left:0}
+  .semgap .acoes>*,.semgap .filtros>*,.semgap .chips>*,.semgap .linha>*{margin:0 10px 10px 0}
+  .semgap .ped .cab>*{margin:0 10px 6px 0}
+  .semgap .btn>*{margin-left:6px}
+  .linha{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+  /* tablet */
+  @media (min-width:700px) and (max-width:1100px){ main{padding:20px 24px} .acoes .btn{flex:0 1 auto;min-width:180px} }
+  iframe.pdf{width:100%;height:70vh;border:1px solid var(--linha);border-radius:8px}
+  img.foto{max-width:100%;border-radius:8px}
+
+  /* ---- sem internet, tabela de preços, resumo */
+  .faixa{max-width:980px;margin:0 auto;padding:8px 16px;font-size:13px;font-weight:600}
+  header .faixa.off{background:#FFF4D6;color:#6B4A00;max-width:none}
+  header .faixa.info{background:#E5EFFA;color:#1F5FA8;max-width:none}
+  header .faixa .linkbtn{padding:0 0 0 6px;font-size:13px}
+  .dicainst{background:#F6EDD0;border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:14px}
+  .dicainst .btn{min-height:36px;padding:6px 12px;margin-left:6px}
+  .item .tabinfo{grid-column:1/-1;font-size:12.5px;color:var(--suave);margin-top:-4px}
+  .item.abaixo .tabinfo{color:var(--erro);font-weight:700}
+  .item.abaixo .iPreco{border-color:var(--erro);background:#FFF7F6}
+  table.it tr.abaixo td{color:var(--erro);font-weight:600}
+  .alerta{margin-top:10px;background:var(--erro-bg);color:#7A1A12;border-left:4px solid var(--erro);border-radius:9px;padding:10px 12px;font-size:14px}
+  .ped.comalerta{border-color:#F3B7B0;box-shadow:0 0 0 2px #FDECEA}
+  .ped.local{border-style:dashed}
+  .p-Aguardando,.p-Aguardando_sinal{background:#FFF4D6;color:#9A6700}
+  .p-Não_aceito{background:var(--erro-bg);color:var(--erro)}
+  .bolha.verm{background:#F04438;color:#fff}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .kpis>div{background:#fff;border:1px solid var(--linha);border-radius:12px;padding:12px 14px}
+  .kpis small{display:block;color:var(--suave);font-size:12px;font-weight:600}
+  .kpis b{display:block;font-size:22px;color:var(--navy);margin:2px 0}
+  .kpis span{font-size:12.5px;color:var(--suave)}
+  .aviso{margin-top:10px;background:var(--pend-bg);color:#6B4A00;border-radius:9px;padding:10px 12px;font-size:13px}
+  body{padding-bottom:env(safe-area-inset-bottom)}
+  header{padding-top:env(safe-area-inset-top)}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ LOGIN -->
+<section id="telaLogin" class="login oculto">
+  <div class="logo"><div>ELLOIN <span>TOALHAS</span></div><small>Pedidos de representantes</small></div>
+  <div class="card">
+    <form id="fLogin">
+      <div style="margin-bottom:12px"><label for="lLogin">Login</label><input id="lLogin" autocomplete="username" autocapitalize="none" required></div>
+      <div style="margin-bottom:16px"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+      <button class="btn prim" style="width:100%" id="bEntrar">Entrar</button>
+    </form>
+  </div>
+  <p class="dica" style="text-align:center">Esqueceu a senha? Fale com o gestor de vendas.</p>
+  <div id="semApi" class="oculto">Este app ainda não foi ligado ao servidor: falta colar o endereço no arquivo <b>config.js</b> (veja o LEIA-ME).</div>
+</section>
+
+<!-- ============================================================ APP -->
+<section id="telaApp" class="oculto">
+  <header>
+    <div class="topo">
+      <div class="marca">ELLOIN <b>TOALHAS</b><small id="subMarca">Pedidos</small></div>
+      <div class="esp"></div>
+      <div class="quem" id="quem"></div>
+      <button class="sairbtn" id="bSair">Sair</button>
+    </div>
+    <nav class="abas" id="abas"></nav>
+    <div id="faixa" class="faixa oculto"></div>
+  </header>
+  <main><div id="dicaInst" class="oculto"></div><div id="conteudo"><div class="carregando">Carregando…</div></div></main>
+</section>
+
+<div id="modal" class="modal oculto"><div class="caixa" id="modalCaixa"></div></div>
+<div id="msg" class="msg oculto"></div>
+
+<script src="config.js"></script>
+<script>
+/* ======================================================================
+   ELLOIN · PEDIDOS — app dos representantes e do gestor
+   Funciona sem internet: pedidos e clientes ficam guardados no aparelho
+   e são enviados sozinhos quando o sinal volta.
+   (JavaScript ES5: roda em iPhone/iPad com iOS 12+ e Android 7+)
+   ====================================================================== */
+var TOKEN = null, D = null, ABA_ATUAL = null, FILA_MEM = [], SINC = false, FORM_SUJO = false, ONLINE = true;
+var API = String(window.ELLOIN_API || '').trim();
+var ARMAZ = (function(){ try{ localStorage.setItem('_t','1'); localStorage.removeItem('_t'); return localStorage; }catch(e){ return null; } })();
+function guardar(k,v){ try{ if(ARMAZ){ v==null?ARMAZ.removeItem(k):ARMAZ.setItem(k,v); } }catch(e){} }
+function ler(k){ try{ return ARMAZ?ARMAZ.getItem(k):null; }catch(e){ return null; } }
+
+/* ---------------------------------------------------------------- servidor */
+function chamar(fn){
+  var args = Array.prototype.slice.call(arguments,1);
+  return new Promise(function(ok,falha){
+    if(!API || API.indexOf('COLE_AQUI')>=0){ var e0=new Error('O app ainda não tem o endereço do servidor (arquivo config.js).'); falha(e0); return; }
+    var x = new XMLHttpRequest();
+    try{ x.open('POST', API, true); }catch(e){ var e1=new Error('Endereço do servidor inválido.'); falha(e1); return; }
+    x.setRequestHeader('Content-Type','text/plain;charset=utf-8');      // sem cabeçalho especial: o Google aceita de outro site
+    x.timeout = fn==='enviarPedido' ? 180000 : 45000;
+    x.onload = function(){
+      var r, txt=String(x.responseText||'');
+      if(x.status===404 || x.status===401 || x.status===403 || /accounts\.google\.com|ServiceLogin|signin/i.test(txt.slice(0,4000))){
+        var ec=new Error('O app não conseguiu falar com o servidor: confira o endereço no config.js e se o Apps Script foi publicado para "Qualquer pessoa".'); ec.config=true; falha(ec); return; }
+      try{ r = JSON.parse(txt); }catch(e){ var er=new Error('Sem sinal de internet (resposta incompleta).'); er.rede=true; marcarOnline(false); falha(er); return; }
+      marcarOnline(true);
+      if(r && r.erro && r.temporario){ var et=new Error('Servidor ocupado, tentando de novo em instantes.'); et.rede=true; falha(et); return; }
+      if(r && r.erro){
+        if(String(r.erro).indexOf('SESSAO')>=0){ sessaoExpirou(); falha(new Error('Sua sessão expirou. Entre de novo.')); return; }
+        falha(new Error(String(r.erro).replace(/^Exception:\s*/,'').replace(/^Error:\s*/,''))); return;
+      }
+      ok(r ? r.ok : null);
+    };
+    x.onerror = x.ontimeout = function(){ var er=new Error('Sem sinal de internet.'); er.rede=true; marcarOnline(false); falha(er); };
+    x.send(JSON.stringify({ fn: fn, args: args }));
+  });
+}
+function marcarOnline(v){ if(ONLINE!==v){ ONLINE=v; faixa(); } }
+function limparDadosLocais(){ guardar('elloin_dados',null); try{ if(ARMAZ){ for(var i=ARMAZ.length-1;i>=0;i--){ var k=ARMAZ.key(i); if(k && k.indexOf('elloin_resumo_')===0) ARMAZ.removeItem(k); } } }catch(e){} }
+function sessaoExpirou(){ TOKEN=null; D=null; guardar('elloin_token',null); limparDadosLocais(); mostrarLogin(); }
+
+/* ---------------------------------------------------------------- utilidades */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function milhar(s){ return s.replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+function rs(v){ var n=Math.round(Number(v||0)*100)/100, neg=n<0, p=Math.abs(n).toFixed(2).split('.'); return (neg?'-':'')+'R$ '+milhar(p[0])+','+p[1]; }
+function nbr(v){ var n=Math.round(Number(v||0)*1000)/1000, p=String(Math.abs(n)).split('.'); return (n<0?'-':'')+milhar(p[0])+(p[1]?','+p[1]:''); }
+function cada(lista,fn){ Array.prototype.forEach.call(lista,fn); }
+function dbr(s){ if(!s) return ''; var p=String(s).split(' ')[0].split('-'); return p.length===3? p[2]+'/'+p[1]+'/'+p[0] : (p.length===2? p[1]+'/'+p[0] : s); }
+function dhbr(s){ if(!s) return ''; var t=String(s).split(' '); return dbr(t[0]) + (t[1]?' '+t[1]:''); }
+function num(v){ var s=String(v==null?'':v).trim().replace(/\s/g,''); if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,''); return s===''?NaN:Number(s); }
+function dois(n){ return (n<10?'0':'')+n; }
+function hojeLocal(){ var d=new Date(); return d.getFullYear()+'-'+dois(d.getMonth()+1)+'-'+dois(d.getDate()); }
+function agoraLocal(){ var d=new Date(); return hojeLocal()+' '+dois(d.getHours())+':'+dois(d.getMinutes()); }
+function normNome(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
+function novoUid(){ return 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
+var _tm;
+function aviso(t,erro){ var m=$('msg'); m.textContent=t; m.className='msg'+(erro?' erro':''); clearTimeout(_tm); _tm=setTimeout(function(){m.className='msg oculto';}, erro?7000:4000); }
+var URLS=[];
+function abrirModal(html,larga){ $('modalCaixa').className='caixa'+(larga?' larga':''); $('modalCaixa').innerHTML=html; $('modal').className='modal'; }
+function fecharModal(){ $('modal').className='modal oculto'; $('modalCaixa').innerHTML=''; while(URLS.length){ try{ URL.revokeObjectURL(URLS.pop()); }catch(e){} } }
+$('modal').addEventListener('click',function(e){ if(e.target.id==='modal') fecharModal(); });
+function ocupado(btn,sim,txt){ if(!btn) return; if(sim){ btn.dataset.t=btn.innerHTML; btn.disabled=true; btn.innerHTML=txt||'Aguarde…'; } else { btn.disabled=false; if(btn.dataset.t) btn.innerHTML=btn.dataset.t; } }
+function pill(sit){ return '<span class="pill p-'+esc(sit).replace(/\s/g,'_')+'">'+esc(sit==='Lançado'?'Lançado na planilha':sit)+'</span>'; }
+function semSinal(e){ return e && e.rede; }
+
+/* ---------------------------------------------------------------- fila no aparelho (IndexedDB) */
+var BANCO = null;
+function abrirBanco(){
+  return new Promise(function(ok){
+    if(BANCO) return ok(BANCO);
+    if(!window.indexedDB) return ok(null);
+    var rq; try{ rq=indexedDB.open('elloin',1); }catch(e){ return ok(null); }
+    rq.onupgradeneeded=function(){ try{ rq.result.createObjectStore('fila',{keyPath:'uid'}); }catch(e){} };
+    rq.onsuccess=function(){ BANCO=rq.result; BANCO.onclose=function(){ BANCO=null; }; BANCO.onversionchange=function(){ try{ BANCO.close(); }catch(e){} BANCO=null; }; ok(BANCO); };
+    rq.onerror=function(){ ok(null); };
+  });
+}
+function transacao(modo){         // se o aparelho fechou o banco por trás (iPhone faz isso), abre de novo
+  return abrirBanco().then(function(db){
+    if(!db) return null;
+    try{ return db.transaction('fila',modo); }catch(e){ BANCO=null; return abrirBanco().then(function(db2){ return db2 ? db2.transaction('fila',modo) : null; }); }
+  });
+}
+function filaLer(){
+  return transacao('readonly').then(function(t){ var db=t; 
+    if(!db){ try{ return JSON.parse(ler('elloin_fila')||'[]'); }catch(e){ return []; } }
+    return new Promise(function(ok){
+      var out=[]; var c=t.objectStore('fila').openCursor();
+      c.onsuccess=function(){ var cur=c.result; if(cur){ out.push(cur.value); cur['continue'](); } else ok(out); };
+      c.onerror=function(){ ok(out); };
+    });
+  }).then(function(l){ l.sort(function(a,b){ return a.criado-b.criado; }); FILA_MEM=l; return l; });
+}
+function filaGravar(item){
+  return transacao('readwrite').then(function(t){ var db=t;
+    if(!db){ var l=FILA_MEM.filter(function(x){return x.uid!==item.uid;}); l.push(item); try{ ARMAZ.setItem('elloin_fila',JSON.stringify(l)); }catch(e){ throw new Error('Sem espaço no aparelho para guardar o pedido.'); } return; }
+    return new Promise(function(ok,falha){ t.objectStore('fila').put(item); t.oncomplete=function(){ ok(); }; t.onerror=t.onabort=function(){ falha(new Error('Sem espaço no aparelho para guardar o pedido.')); }; });
+  }).then(filaLer);
+}
+function filaTirar(uid){
+  return transacao('readwrite').then(function(t){ var db=t;
+    if(!db){ guardar('elloin_fila',JSON.stringify(FILA_MEM.filter(function(x){return x.uid!==uid;}))); return; }
+    return new Promise(function(ok){ t.objectStore('fila')['delete'](uid); t.oncomplete=function(){ ok(); }; t.onerror=function(){ ok(); }; });
+  }).then(filaLer);
+}
+function minhaFila(){ return D && D.eu ? FILA_MEM.filter(function(x){ return x.login===D.eu.login; }) : []; }
+function pendentes(){ return minhaFila().filter(function(x){ return x.estado!=='erro'; }); }
+function clienteTravado(nome){ return minhaFila().some(function(x){ return x.tipo==='cliente' && x.estado==='erro' && x.nomeLocal===nome; }); }
+
+/* ---------------------------------------------------------------- sincronização */
+function sincronizar(){
+  if(SINC || !TOKEN || !D || !D.eu) return Promise.resolve();
+  SINC=true; faixa();
+  var msgs=[], mudou=false, parou=false, loginSinc=D.eu.login;
+  return filaLer().then(function(){
+    var cadeia=Promise.resolve();
+    minhaFila().filter(function(x){ return x.estado!=='erro'; }).forEach(function(it){
+      cadeia=cadeia.then(function(){
+        if(parou || !D || D.eu.login!==loginSinc) return;
+        if(it.tipo==='pedido' && clienteTravado(it.dados.cliente)) return;     // espera o cadastro do cliente ser corrigido
+        var p = it.tipo==='cliente' ? chamar('cadastrarCliente',TOKEN,it.dados) : chamar('enviarPedido',TOKEN,it.dados,it.anexo);
+        return p.then(function(r){
+          mudou=true;
+          if(it.tipo==='pedido'){
+            if(r.numeroMudou) msgs.push('O pedido '+it.dados.numProposto+' foi enviado com o nº '+r.numero+' (o '+it.dados.numProposto+' já tinha sido usado em outro aparelho).');
+            if(!D.pedidos.some(function(p){ return p.id===r.id; })){        // aparece em Meus pedidos mesmo se a lista não recarregar
+              var ped=pedidoDaFila(it); ped.local=false; ped.id=r.id; ped.sit='Pendente'; ped.numRep=r.numero; ped.uid=it.uid; ped.mes=it.dados.data.slice(0,7); ped.alerta=r.alerta||''; ped.forma=it.dados.forma; ped.prazo=it.dados.prazo;
+              D.pedidos.unshift(ped); guardar('elloin_dados',JSON.stringify(D));
+            }
+          }
+          return filaTirar(it.uid);
+        }, function(e){
+          if(semSinal(e)){ parou=true; return; }
+          if(!TOKEN){ parou=true; return; }
+          it.estado='erro'; it.erro=e.message; msgs.push((it.tipo==='cliente'?'Cliente ':'Pedido ')+(it.dados.numProposto||it.dados.fantasia||'')+' não foi aceito: '+e.message);
+          return filaGravar(it);
+        });
+      });
+    });
+    return cadeia;
+  }).then(function(){
+    if(mudou) return chamar('carregar',TOKEN).then(aplicarDados).catch(function(){});
+  }).then(function(){ SINC=false; faixa(); if(msgs.length) aviso(msgs.join(' '), msgs.join('').indexOf('não foi aceito')>=0); if(mudou||msgs.length) redesenhar(); return mudou; },
+          function(){ SINC=false; faixa(); });
+}
+window.addEventListener('online',function(){ marcarOnline(true); sincronizar(); });
+window.addEventListener('offline',function(){ marcarOnline(false); });
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible' && TOKEN){ sincronizar(); } });
+setInterval(function(){ if(TOKEN && pendentes().length) sincronizar(); }, 30000);
+
+function faixa(){
+  var f=$('faixa'); if(!f) return;
+  var n=pendentes().length, nErr=minhaFila().length-n;
+  var txt='', cls='faixa';
+  if(SINC){ txt='Enviando o que está guardado no aparelho…'; cls+=' info'; }
+  else if(!ONLINE){ txt='Sem sinal. '+(n?n+' item(ns) guardado(s) no aparelho: vão ser enviados quando o sinal voltar.':'Você pode lançar pedidos normalmente: eles ficam guardados no aparelho.'); cls+=' off'; }
+  else if(n){ txt=n+' item(ns) guardado(s) no aparelho aguardando envio.'; cls+=' off'; }
+  if(nErr) txt+=(txt?' ':'')+nErr+' item(ns) não aceito(s): veja em Meus pedidos.';
+  f.className = txt ? cls : 'faixa oculto';
+  f.innerHTML = txt ? esc(txt)+(n&&!SINC&&ONLINE?' <button class="linkbtn" onclick="sincronizar()">Enviar agora</button>':'') : '';
+}
+
+/* ---------------------------------------------------------------- dados (guardados no aparelho para abrir sem sinal) */
+function aplicarDados(d){
+  D=d; d._token=TOKEN; guardar('elloin_dados',JSON.stringify(d));
+  var seqLoc=Number(ler('elloin_seq_'+d.eu.login)||0); if(d.seq>seqLoc) guardar('elloin_seq_'+d.eu.login,String(d.seq));
+  montarAbas();
+}
+function dadosGuardados(){ try{ var d=JSON.parse(ler('elloin_dados')||'null'); return d && d.eu && d._token===TOKEN ? d : null; }catch(e){ return null; } }   // só os dados de quem está logado
+function redesenhar(){
+  if(!D) return;
+  montarAbas();
+  if(FORM_SUJO) return;            // não apaga o que a pessoa está digitando ou mudou na tela (formulário, mês da aprovação, tabela)
+  irPara(ABA_ATUAL, true);
+}
+
+/* ---------------------------------------------------------------- login */
+function mostrarLogin(){ $('telaApp').className='oculto'; $('telaLogin').className='login';
+  if(!API || API.indexOf('COLE_AQUI')>=0) $('semApi').className='aviso';
+  if(!('ontouchstart' in window) && !$('lLogin').value) setTimeout(function(){ if(document.activeElement===document.body) $('lLogin').focus(); },50); }
+$('fLogin').addEventListener('submit',function(e){
+  e.preventDefault(); var b=$('bEntrar'); ocupado(b,true,'Entrando…');
+  chamar('entrar',$('lLogin').value,$('lSenha').value).then(function(r){
+    TOKEN=r.token; guardar('elloin_token',TOKEN); $('lSenha').value=''; return iniciar();
+  }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para entrar é preciso ter internet (só na primeira vez ou depois de sair).':e.message,true); }).then(function(){ ocupado(b,false); });
+});
+$('bSair').addEventListener('click',function(){
+  var n=pendentes().length;
+  if(n && !confirm('Há '+n+' item(ns) ainda não enviado(s). Eles continuam guardados neste aparelho e vão quando você entrar de novo com sinal. Sair mesmo assim?')) return;
+  chamar('sair',TOKEN).catch(function(){}); TOKEN=null; guardar('elloin_token',null); limparDadosLocais(); D=null; mostrarLogin(); });
+
+function iniciar(){
+  $('telaLogin').className='login oculto'; $('telaApp').className='';
+  var guard=dadosGuardados();
+  if(!guard) D=null;
+  return filaLer().then(function(){
+    if(guard){ D=guard; cabecalho(); montarAbas(); irPara(ABA_ATUAL && abasValidas().indexOf(ABA_ATUAL)>=0 ? ABA_ATUAL : abasValidas()[0]); faixa(); }
+    else $('conteudo').innerHTML='<div class="carregando">Carregando…</div>';
+    return chamar('carregar',TOKEN).then(function(d){
+      var trocouUsuario = !guard || guard.eu.login!==d.eu.login;
+      aplicarDados(d); cabecalho();
+      if(trocouUsuario) irPara(abasValidas()[0]); else redesenhar();
+      faixa(); return sincronizar();
+    }).catch(function(e){
+      if(!TOKEN) return;
+      if(semSinal(e) && guard){ faixa(); return; }
+      $('conteudo').innerHTML='<div class="card vazio">'+(semSinal(e)?'Sem sinal de internet. Na primeira vez o app precisa de sinal para baixar seus clientes e modelos.':'Não carregou: '+esc(e.message))+'<br><br><button class="btn prim" onclick="iniciar()">Tentar de novo</button></div>';
+    });
+  });
+}
+function cabecalho(){
+  $('quem').innerHTML=esc(D.eu.nome)+'<br><small>'+(D.eu.perfil==='gestor'?'Gestor de vendas':'Representante')+'</small>';
+  $('subMarca').textContent = D.eu.perfil==='gestor' ? 'Aprovação de pedidos' : 'Pedidos de representantes';
+  dicaInstalar();
+}
+function recarregar(){ return chamar('carregar',TOKEN).then(function(d){ aplicarDados(d); irPara(ABA_ATUAL,true); }); }
+
+function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','historico','resumo','precos','usuarios'] : ['novo','meus','resumo']; }
+function montarAbas(){
+  var nomes, n;
+  if(D.eu.perfil==='gestor'){
+    n=D.pedidos.filter(function(p){return p.sit==='Pendente';}).length;
+    var nA=D.pedidos.filter(function(p){return p.sit==='Pendente' && p.alerta;}).length;
+    nomes={aprovar:'Para aprovar'+(n?'<span class="bolha'+(nA?' verm':'')+'">'+n+'</span>':''),historico:'Todos os pedidos',resumo:'Resumo de vendas',precos:'Tabela de preços',usuarios:'Representantes'};
+  } else {
+    n=D.pedidos.filter(function(p){return p.sit==='Recusado' && !p.reenviado;}).length + minhaFila().length;
+    nomes={novo:'Novo pedido',meus:'Meus pedidos'+(n?'<span class="bolha">'+n+'</span>':''),resumo:'Meu resumo'};
+  }
+  $('abas').innerHTML = abasValidas().map(function(a){ return '<button data-a="'+a+'" class="'+(a===ABA_ATUAL?'ativo':'')+'">'+nomes[a]+'</button>'; }).join('');
+  cada($('abas').children,function(b){ b.onclick=function(){ irPara(b.getAttribute('data-a')); }; });
+}
+function irPara(a, manterRolagem){
+  if(abasValidas().indexOf(a)<0) a=abasValidas()[0];
+  ABA_ATUAL=a; FORM_SUJO=false;
+  cada($('abas').children,function(b){ b.className = b.getAttribute('data-a')===a?'ativo':''; });
+  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,precos:telaPrecos,usuarios:telaUsuarios})[a]();
+  if(!manterRolagem) window.scrollTo(0,0);
+}
+
+/* ---------------------------------------------------------------- REPRESENTANTE: novo pedido */
+var RASCUNHO=null, ANEXO=null;
+function clientesVisiveis(){
+  var l=(D.clientes||[]).slice(), nomes={};
+  l.forEach(function(c){ nomes[c.nome]=1; });
+  minhaFila().forEach(function(it){ if(it.tipo==='cliente' && !nomes[it.nomeLocal]){ l.push({nome:it.nomeLocal, razao:String(it.dados.razao||'').toUpperCase(), doc:it.dados.doc, cidade:it.dados.cidade+' / '+it.dados.uf, novo:true, local:true}); } });
+  return l.sort(function(a,b){ return a.nome<b.nome?-1:1; });
+}
+function opcoesClientes(sel){
+  return '<option value="">Escolha o cliente…</option>' + clientesVisiveis().map(function(c){
+    return '<option value="'+esc(c.nome)+'"'+(c.nome===sel?' selected':'')+'>'+esc(c.nome.replace(/^[^\/]*\//,''))+(c.local?'  (novo, guardado no aparelho)':c.novo?'  (novo)':'')+'</option>';
+  }).join('') + '<option value="__novo">+ Cadastrar cliente novo</option>';
+}
+function opcoesModelos(sel){
+  return '<option value="">Modelo…</option>' + D.modelos.map(function(m){ return '<option'+(m.nome===sel?' selected':'')+'>'+esc(m.nome)+'</option>'; }).join('');
+}
+function precoTabela(modelo){ var t=D.tabela||{}; var v=t[normNome(modelo)]; return v>0 ? v : null; }
+// nº do pedido: sequência do representante; sem sinal, o aparelho reserva o próximo
+function seqLocal(){
+  var s=Math.max(Number(D.seq||0), Number(ler('elloin_seq_'+D.eu.login)||0));
+  minhaFila().forEach(function(it){ if(it.tipo==='pedido' && it.dados.numProposto){ var n=Number(String(it.dados.numProposto).split('-').pop()); if(n>s) s=n; } });
+  return s;
+}
+function fmtNumero(n){ var s=String(n); while(s.length<4) s='0'+s; return (D.prefixo||'PED')+'-'+s; }
+function telaNovo(){
+  var r = RASCUNHO || {data:hojeLocal(), entrega:'', itens:[{},{}]};
+  var numMostrado = r.deId ? r.numRep : (r.numProposto || fmtNumero(seqLocal()+1));
+  $('conteudo').innerHTML =
+  '<form id="fPed" class="card" autocomplete="off" novalidate>'+
+    '<h2>'+(r.deId?'Corrigir e reenviar o pedido recusado nº '+esc(r.numRep):r.filaUid?'Corrigir pedido não aceito':'Novo pedido')+'</h2>'+
+    '<div class="grade">'+
+      '<div class="tudo"><label>Cliente <span class="obr">*</span></label><select id="pCliente">'+opcoesClientes(r.cliente)+'</select>'+
+        '<div class="dica" id="pCliInfo"></div></div>'+
+      '<div class="tudo"><label>Nº do pedido</label><div class="numauto" id="pNum">'+esc(numMostrado)+'<small>'+(r.deId?'(mesmo nº do pedido recusado)':'(automático)')+'</small></div></div>'+
+      '<div class="tudo"><label>Forma de pagamento <span class="obr">*</span></label><div class="seg" id="pForma">'+D.formas.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.forma===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
+      '<div class="tudo"><label>Prazo (dias) <span class="obr">*</span></label><div class="seg" id="pPrazo">'+D.prazos.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.prazo===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
+      '<div><label>Data do pedido <span class="obr">*</span></label><input id="pData" type="date" max="'+hojeLocal()+'" value="'+esc(r.data||hojeLocal())+'"></div>'+
+      '<div><label>Data da entrega <span class="obr">*</span></label><input id="pEntrega" type="date" value="'+esc(r.entrega||'')+'"><div class="dica">Previsão combinada com o cliente</div></div>'+
+    '</div>'+
+    '<h3 style="margin-top:18px">Itens</h3><div id="pItens"></div>'+
+    '<button type="button" class="linkbtn" id="pMais">+ adicionar item</button>'+
+    '<div class="total"><span>Total do pedido</span><span id="pTotal">R$ 0,00</span></div>'+
+    '<div class="grade" style="margin-top:14px">'+
+      '<div class="tudo"><label>Observação</label><textarea id="pObs" maxlength="300">'+esc(r.obs||'')+'</textarea></div>'+
+      '<div class="tudo"><label>PDF ou foto do pedido <span class="obr">*</span></label><input id="pAnexo" type="file" accept="application/pdf,image/*">'+
+        '<div class="anexo-ok" id="pAnexoInfo">'+(r.anexo?'✓ '+esc(r.anexo.nome||'anexo')+' (já anexado)':'')+'</div><div class="dica">O mesmo arquivo que você mandaria no WhatsApp. Até 10 MB.</div></div>'+
+    '</div>'+
+    '<div class="acoes">'+(r.deId||r.filaUid?'<button type="button" class="btn claro" id="pDescartar">Descartar correção</button>':'')+
+      '<button class="btn prim" id="pEnviar">Enviar para aprovação</button></div>'+
+  '</form>';
+  ANEXO=r.anexo||null;
+  (r.itens&&r.itens.length?r.itens:[{}]).forEach(function(it){ addItem(it); });
+  $('pMais').onclick=function(){ addItem({}); };
+  cada([$('pForma'),$('pPrazo')],function(g){ cada(g.querySelectorAll('button'),function(b){ b.onclick=function(){ cada(g.querySelectorAll('button'),function(x){ x.className=''; }); b.className='sel'; FORM_SUJO=true; }; }); });
+  $('pCliente').onchange=function(){ if(this.value==='__novo'){ this.value=''; modalCliente(); } infoCliente(); FORM_SUJO=true; };
+  $('pData').onchange=function(){ $('pEntrega').min=this.value; };
+  $('pEntrega').min=$('pData').value;
+  $('pAnexo').onchange=lerAnexo;
+  if($('pDescartar')) $('pDescartar').onclick=function(){ RASCUNHO=null; FORM_SUJO=false; telaNovo(); };
+  $('fPed').onsubmit=enviarPedido;
+  infoCliente(); somar();
+}
+function infoCliente(){
+  var c=clientesVisiveis().filter(function(x){return x.nome===$('pCliente').value;})[0];
+  $('pCliInfo').innerHTML = c ? esc([c.razao,c.doc,c.cidade].filter(String).join(' · ')) + (c.local?' <span class="pill p-Aguardando">GUARDADO NO APARELHO</span>':c.novo?' <span class="pill novo">NOVO</span>':'') : '';
+}
+function escolhido(id){ var b=$(id).querySelector('button.sel'); return b?b.getAttribute('data-v'):''; }
+// valor em reais: a pessoa digita só os números (1750 -> 17,50)
+function mascaraValor(inp){ var d=inp.value.replace(/\D/g,'').replace(/^0+/,''); if(!d){ inp.value=''; return; } while(d.length<3) d='0'+d;
+  inp.value=milhar(d.slice(0,-2))+','+d.slice(-2); }
+function mascaraQtd(inp){ var d=inp.value.replace(/\D/g,'').replace(/^0+/,''); inp.value=d?milhar(d):''; }
+function fmtValor(v){ return rs(v).replace('R$ ',''); }
+function addItem(it){
+  var d=document.createElement('div'); d.className='item';
+  d.innerHTML='<div class="mod"><label>Modelo</label><select class="iMod">'+opcoesModelos(it.modelo)+'</select></div>'+
+    '<div><label>Qtd (peças)</label><input class="iQtd" inputmode="numeric" pattern="[0-9]*" value="'+(it.qtd!=null&&it.qtd!==''?esc(milhar(String(Math.round(num(it.qtd))))):'')+'"></div>'+
+    '<div><label>Valor da toalha</label><input class="iPreco" inputmode="numeric" pattern="[0-9]*" placeholder="0,00" value="'+(it.preco!=null&&it.preco!==''?esc(fmtValor(num(it.preco))):'')+'"></div>'+
+    '<div class="tot">—</div><button type="button" class="x" title="remover">×</button><div class="tabinfo"></div>';
+  $('pItens').appendChild(d);
+  d.querySelector('.x').onclick=function(){ if($('pItens').children.length>1){ d.parentNode.removeChild(d); somar(); } else { cada(d.querySelectorAll('input'),function(i){i.value='';}); d.querySelector('select').value=''; somar(); } };
+  var pr=d.querySelector('.iPreco'), qt=d.querySelector('.iQtd'), md=d.querySelector('.iMod');
+  pr.addEventListener('input',function(){ mascaraValor(pr); }); qt.addEventListener('input',function(){ mascaraQtd(qt); });
+  md.addEventListener('change',function(){ var t=precoTabela(md.value); if(t && !pr.value) pr.value=fmtValor(t); somar(); });   // preço de tabela já vem preenchido
+  cada(d.querySelectorAll('input,select'),function(i){ i.addEventListener('input',somar); i.addEventListener('change',somar); });
+}
+function itensDaTela(){
+  return Array.prototype.map.call($('pItens').children,function(d){
+    return {modelo:d.querySelector('.iMod').value, qtd:d.querySelector('.iQtd').value.trim(), preco:d.querySelector('.iPreco').value.trim(), el:d};
+  });
+}
+function somar(){
+  var t=0;
+  itensDaTela().forEach(function(it){
+    var v=num(it.qtd)*num(it.preco); it.el.querySelector('.tot').textContent = isFinite(v)&&v>0 ? rs(v) : '—'; if(isFinite(v)&&v>0) t+=Math.round(v*100)/100;
+    var tab=precoTabela(it.modelo), p=num(it.preco), info=it.el.querySelector('.tabinfo');
+    var abaixo = tab && p>0 && p < tab-0.004;
+    it.el.className = 'item'+(abaixo?' abaixo':'');
+    info.innerHTML = tab ? (abaixo?'⚠ Abaixo da sua tabela ('+rs(tab)+'). O gestor vai receber um alerta.':'Sua tabela: '+rs(tab)) : '';
+  });
+  $('pTotal').textContent=rs(t);
+}
+function lerAnexo(){
+  var inp=this, f=inp.files[0]; ANEXO=null; $('pAnexoInfo').textContent='';
+  if(!f) return;
+  if(f.size>10*1048576){ aviso('Arquivo maior que 10 MB.',true); inp.value=''; return; }
+  var tipo=f.type||'', ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(!tipo || tipo==='application/octet-stream') tipo = ext==='pdf'?'application/pdf': (ext==='jpg'||ext==='jpeg')?'image/jpeg': ext==='png'?'image/png': ext==='heic'?'image/heic': ext==='webp'?'image/webp':'';
+  if(!/^(application\/pdf|image\/(jpeg|png|webp|heic|heif))$/.test(tipo)){ aviso('Envie PDF ou foto (JPG/PNG).',true); inp.value=''; return; }
+  var fim=function(b64,t){ ANEXO={base64:b64,tipo:t,nome:f.name}; $('pAnexoInfo').textContent='✓ '+f.name+' anexado'; FORM_SUJO=true; };
+  var giraSozinho=false; try{ giraSozinho = !!(window.CSS && CSS.supports && CSS.supports('image-orientation','from-image')); }catch(e){}
+  if(/^image\/(jpeg|png|webp)$/.test(tipo) && f.size>700000 && giraSozinho){        // foto grande: reduz (aparelho antigo manda a original para não ficar deitada)
+    var img=new Image(), url=URL.createObjectURL(f);
+    img.onload=function(){ var m=1800, k=Math.min(1,m/Math.max(img.width,img.height)), c=document.createElement('canvas');
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); fim(c.toDataURL('image/jpeg',0.82).split(',')[1],'image/jpeg'); };
+    img.onerror=function(){ URL.revokeObjectURL(url); lerBruto(); };
+    img.src=url;
+  } else lerBruto();
+  function lerBruto(){ var fr=new FileReader(); fr.onload=function(){ fim(String(fr.result).split(',')[1], tipo); }; fr.readAsDataURL(f); }
+}
+function enviarPedido(e){
+  e.preventDefault();
+  var itens=itensDaTela().filter(function(i){return i.modelo||i.qtd||i.preco;}).map(function(i){return {modelo:i.modelo,qtd:i.qtd,preco:i.preco};});
+  var d={cliente:$('pCliente').value, forma:escolhido('pForma'), prazo:escolhido('pPrazo'), data:$('pData').value,
+         entrega:$('pEntrega').value, obs:$('pObs').value.trim(), itens:itens, deId:RASCUNHO&&RASCUNHO.deId||''};
+  var falta = !d.cliente?'Escolha o cliente.': !d.forma?'Escolha a forma de pagamento (Pix ou Boleto).': !d.prazo?'Escolha o prazo.': !d.data?'Informe a data do pedido.': d.data>hojeLocal()?'A data do pedido não pode ser futura.': !d.entrega?'Informe a data da entrega.':
+              d.entrega<d.data?'A entrega não pode ser antes do pedido.': !itens.length?'Inclua pelo menos um item.': !ANEXO?'Anexe o PDF ou a foto do pedido.':'';
+  if(!falta) itens.forEach(function(it,k){ if(!falta && (!it.modelo || !(num(it.qtd)>0) || !(num(it.preco)>0))) falta='Item '+(k+1)+': confira modelo, quantidade e valor.'; });
+  if(falta){ aviso(falta,true); return; }
+  var abaixo=itens.filter(function(it){ var t=precoTabela(it.modelo); return t && num(it.preco)<t-0.004; });
+  if(abaixo.length && !confirm(abaixo.length+' item(ns) com valor abaixo da sua tabela de preços:\n'+abaixo.map(function(it){ return '• '+it.modelo+': '+it.preco+' (tabela '+fmtValor(precoTabela(it.modelo))+')'; }).join('\n')+'\n\nO gestor vai receber um alerta. Enviar mesmo assim?')) return;
+  var filaUid = RASCUNHO&&RASCUNHO.filaUid, uid = filaUid || novoUid();
+  if(!d.deId){ d.numProposto = RASCUNHO&&RASCUNHO.numProposto || fmtNumero(seqLocal()+1); guardar('elloin_seq_'+D.eu.login, String(Number(d.numProposto.split('-').pop()))); }
+  d.uid=uid;
+  var item={ uid:uid, tipo:'pedido', login:D.eu.login, criado:Date.now(), quando:agoraLocal(), dados:d, anexo:ANEXO, estado:'pendente' };
+  var b=$('pEnviar'); ocupado(b,true,'Enviando…');
+  filaGravar(item).then(function(){
+    RASCUNHO=null; ANEXO=null; FORM_SUJO=false;
+    return sincronizar();
+  }).then(function(){
+    var ficou=FILA_MEM.filter(function(x){return x.uid===uid;})[0];
+    var tot=itens.reduce(function(s,it){ return s+Math.round(num(it.qtd)*num(it.preco)*100)/100; },0);
+    if(!ficou){
+      var fin=item.final||{}; var p=(D.pedidos||[]).filter(function(x){return x.uid===uid;})[0]||{};
+      abrirModal('<h2>Pedido enviado ✓</h2><p>Pedido nº <b>'+esc(p.numRep||fin.numero||d.numProposto||'')+'</b> · '+rs(tot)+'</p><p>Agora ele aguarda a aprovação do gestor. Você acompanha em <b>Meus pedidos</b> e recebe o retorno também pelo WhatsApp.</p>'+
+        '<div class="acoes"><button class="btn claro" onclick="fecharModal();telaNovo()">Lançar outro</button><button class="btn prim" onclick="fecharModal();irPara(\'meus\')">Ver meus pedidos</button></div>');
+    } else if(ficou.estado==='erro'){
+      aviso('O pedido não foi aceito: '+ficou.erro, true); RASCUNHO=rascunhoDaFila(ficou); telaNovo();
+    } else {
+      abrirModal('<h2>Pedido guardado no aparelho ✓</h2><p>Pedido nº <b>'+esc(d.numProposto||d.deId)+'</b> · '+rs(tot)+'</p><p><b>Sem sinal agora.</b> O pedido fica guardado neste aparelho e é enviado sozinho quando o sinal voltar, com o app aberto. Não precisa lançar de novo.</p>'+
+        '<div class="acoes"><button class="btn claro" onclick="fecharModal();telaNovo()">Lançar outro</button><button class="btn prim" onclick="fecharModal();irPara(\'meus\')">Ver meus pedidos</button></div>');
+    }
+    montarAbas(); faixa();
+  }).catch(function(err){ aviso(err.message,true); }).then(function(){ ocupado(b,false); });
+}
+function rascunhoDaFila(it){
+  var d=it.dados;
+  return {filaUid:it.uid, numProposto:d.numProposto, deId:d.deId, numRep:d.deId?(D.pedidos.filter(function(p){return p.id===d.deId;})[0]||{}).numRep:'', cliente:d.cliente, forma:d.forma, prazo:d.prazo,
+          data:d.data, entrega:d.entrega, obs:d.obs, itens:d.itens, anexo:it.anexo};
+}
+
+/* ---------------------------------------------------------------- REPRESENTANTE: cliente novo (também sem sinal) */
+var UFS='AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RJ,RN,RS,RO,RR,SC,SP,SE,TO'.split(',');
+function soNum(s){ return String(s||'').replace(/\D/g,''); }
+function digDoc(d,p){ var s=0; for(var i=0;i<p.length;i++) s+=Number(d.charAt(i))*p[i]; var r=s%11; return r<2?0:11-r; }
+function docOk(d){ if(d.length!==11&&d.length!==14) return false; if(/^(\d)\1+$/.test(d)) return false;
+  if(d.length===14) return digDoc(d,[5,4,3,2,9,8,7,6,5,4,3,2])===Number(d.charAt(12)) && digDoc(d,[6,5,4,3,2,9,8,7,6,5,4,3,2])===Number(d.charAt(13));
+  return digDoc(d,[10,9,8,7,6,5,4,3,2])===Number(d.charAt(9)) && digDoc(d,[11,10,9,8,7,6,5,4,3,2])===Number(d.charAt(10)); }
+function campo(id,rot,obr,extra,dica,tudo){ return '<div'+(tudo?' class="tudo"':'')+'><label for="'+id+'">'+rot+(obr?' <span class="obr">*</span>':'')+'</label><input id="'+id+'" '+(extra||'')+'>'+(dica?'<div class="dica">'+dica+'</div>':'')+'</div>'; }
+function modalCliente(corrigindo){
+  abrirModal('<h2>Cadastrar cliente novo</h2><p class="dica">Mesmo cadastro da planilha da empresa: entra direto na base de clientes. Fica visível só para você. Funciona sem sinal.</p>'+
+    '<div class="grade">'+
+    campo('cFan','Nome fantasia (como é conhecido)',1,'placeholder="ex.: Bessa"','',1)+
+    campo('cRaz','Razão social',1,'placeholder="nome que está no CNPJ/CPF"','',1)+
+    campo('cDoc','CNPJ ou CPF',1,'inputmode="numeric"','O app confere os dígitos')+
+    campo('cTel','Telefone',1,'inputmode="tel" placeholder="(37) 3333-4444"')+
+    campo('cWpp','WhatsApp',1,'inputmode="tel" placeholder="(37) 99999-8888"','<label style="display:inline;font-weight:400"><input type="checkbox" id="cMesmo" style="width:auto;min-height:0;-webkit-appearance:checkbox;appearance:auto;margin-right:6px">mesmo número do telefone</label>')+
+    campo('cEmail','E-mail',1,'type="email" inputmode="email" autocapitalize="none" placeholder="compras@cliente.com.br"')+
+    campo('cCep','CEP',1,'inputmode="numeric" placeholder="00000-000"','Com sinal, preenche o endereço sozinho')+
+    campo('cEnd','Endereço (rua / avenida)',1,'','',1)+
+    campo('cNum','Número',1,'placeholder="S/N se não tiver"')+
+    campo('cCompl','Complemento',0,'placeholder="sala, galpão…"')+
+    campo('cBairro','Bairro',1,'')+
+    campo('cCid','Cidade',1,'')+
+    '<div><label for="cUf">UF <span class="obr">*</span></label><select id="cUf"><option value="">UF…</option>'+UFS.map(function(u){return '<option>'+u+'</option>';}).join('')+'</select></div>'+
+    '</div><div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn prim" id="cSalvar">Cadastrar</button></div>');
+  if(corrigindo){ var dc=corrigindo.dados; $('modalCaixa').querySelector('h2').textContent='Corrigir cadastro do cliente';
+    if(corrigindo.erro) $('modalCaixa').querySelector('p').innerHTML='<b>O servidor não aceitou:</b> '+esc(corrigindo.erro);
+    [['cFan','fantasia'],['cRaz','razao'],['cDoc','doc'],['cTel','tel'],['cWpp','whats'],['cEmail','email'],['cCep','cep'],['cEnd','end'],['cNum','num'],['cCompl','compl'],['cBairro','bairro'],['cCid','cidade'],['cUf','uf']].forEach(function(p){ $(p[0]).value=dc[p[1]]||''; }); }
+  $('cMesmo').onchange=function(){ if(this.checked) $('cWpp').value=$('cTel').value; };
+  $('cTel').oninput=function(){ if($('cMesmo').checked) $('cWpp').value=this.value; };
+  $('cCep').onchange=function(){ buscarCep(soNum(this.value)); };
+  $('cSalvar').onclick=function(){
+    var d={fantasia:$('cFan').value,razao:$('cRaz').value,doc:$('cDoc').value,tel:$('cTel').value,whats:$('cWpp').value,email:$('cEmail').value,
+           cep:$('cCep').value,end:$('cEnd').value,num:$('cNum').value,compl:$('cCompl').value,bairro:$('cBairro').value,cidade:$('cCid').value,uf:$('cUf').value};
+    var f=[], dd=soNum(d.doc), t=soNum(d.tel), w=soNum(d.whats);
+    if(String(d.fantasia).trim().length<2) f.push('nome fantasia'); if(!String(d.razao).trim()) f.push('razão social');
+    if(!dd) f.push('CNPJ/CPF'); else if(!docOk(dd)) f.push('CNPJ/CPF inválido');
+    if(t.length<10||t.length>11) f.push('telefone com DDD'); if(w.length<10||w.length>11) f.push('WhatsApp com DDD');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@.]+$/.test(String(d.email).trim())) f.push('e-mail');
+    if(soNum(d.cep).length!==8) f.push('CEP (8 números)'); if(!String(d.end).trim()) f.push('endereço'); if(!String(d.num).trim()) f.push('número');
+    if(!String(d.bairro).trim()) f.push('bairro'); if(!String(d.cidade).trim()) f.push('cidade'); if(!d.uf) f.push('UF');
+    if(f.length){ aviso('Falta ou está errado: '+f.join(', ')+'.',true); return; }
+    var nomeLocal = normNome(D.eu.vendedor)+'/'+normNome(d.fantasia).replace(/\//g,'-');
+    if(clientesVisiveis().some(function(c){ return c.nome===nomeLocal && !(corrigindo && corrigindo.nomeLocal===nomeLocal); })){ aviso('Você já tem o cliente "'+nomeLocal+'".',true); return; }
+    d.uid=corrigindo ? corrigindo.uid : novoUid();
+    var item={ uid:d.uid, tipo:'cliente', login:D.eu.login, criado:corrigindo?corrigindo.criado:Date.now(), quando:agoraLocal(), dados:d, nomeLocal:nomeLocal, estado:'pendente' };
+    var b=this; ocupado(b,true,'Salvando…');
+    var antes = corrigindo ? corrigindo.nomeLocal : null;
+    filaGravar(item).then(function(){
+      if(!antes || antes===nomeLocal) return;
+      // pedidos guardados com o nome antigo do cliente passam para o nome corrigido
+      return minhaFila().filter(function(x){ return x.tipo==='pedido' && x.dados.cliente===antes; }).reduce(function(p,x){ return p.then(function(){ x.dados.cliente=nomeLocal; return filaGravar(x); }); }, Promise.resolve());
+    }).then(function(){
+      fecharModal(); if($('pCliente')){ $('pCliente').innerHTML=opcoesClientes(nomeLocal); infoCliente(); } FORM_SUJO=true;
+      return sincronizar();
+    }).then(function(){
+      var ficou=FILA_MEM.filter(function(x){return x.uid===item.uid;})[0];
+      if(!ficou) aviso('Cliente cadastrado. Ele entra na planilha da empresa automaticamente.');
+      else if(ficou.estado==='erro') aviso('Cliente não aceito: '+ficou.erro,true);
+      else aviso('Sem sinal: cliente guardado no aparelho. Já pode lançar o pedido; tudo vai junto quando o sinal voltar.');
+      if($('pCliente')){ $('pCliente').innerHTML=opcoesClientes(nomeLocal); infoCliente(); }
+    }).catch(function(e){ aviso(e.message,true); ocupado(b,false); });
+  };
+  setTimeout(function(){ try{ $('cFan').focus(); }catch(e){} },50);
+}
+// CEP -> endereço (ViaCEP). Sem sinal, a pessoa digita.
+function buscarCep(cep){
+  if(cep.length!==8) return;
+  try{
+    var x=new XMLHttpRequest(); x.open('GET','https://viacep.com.br/ws/'+cep+'/json/',true); x.timeout=6000;
+    x.onload=function(){ try{ var j=JSON.parse(x.responseText); if(j.erro) { aviso('CEP não encontrado. Confira ou preencha o endereço.',true); return; }
+      if(j.logradouro && !$('cEnd').value) $('cEnd').value=j.logradouro; if(j.bairro && !$('cBairro').value) $('cBairro').value=j.bairro;
+      if(j.localidade) $('cCid').value=j.localidade; if(j.uf) $('cUf').value=j.uf; if(!$('cNum').value) $('cNum').focus(); }catch(e){} };
+    x.send();
+  }catch(e){}
+}
+
+/* ---------------------------------------------------------------- REPRESENTANTE: meus pedidos */
+function blocoItens(p, comTabela){
+  var temTab = comTabela && p.itens.some(function(i){ return i.tabela; });
+  return '<table class="it"><tr><th>Modelo</th><th class="n">Qtd</th><th class="n">Preço</th>'+(temTab?'<th class="n">Tabela</th>':'')+'<th class="n">Total</th></tr>'+
+    p.itens.map(function(i){ return '<tr'+(i.abaixo?' class="abaixo"':'')+'><td>'+esc(i.modelo)+(i.abaixo?' ⚠':'')+'</td><td class="n">'+nbr(i.qtd)+'</td><td class="n">'+rs(i.preco)+'</td>'+
+      (temTab?'<td class="n">'+(i.tabela?rs(i.tabela):'—')+'</td>':'')+'<td class="n">'+rs(i.total)+'</td></tr>'; }).join('')+
+    '<tr><td colspan="'+(temTab?4:3)+'"><b>Total</b></td><td class="n"><b>'+rs(p.total)+'</b></td></tr></table>';
+}
+function pedidoDaFila(it){
+  var d=it.dados, tot=0;
+  var itens=(d.itens||[]).map(function(i){ var q=num(i.qtd), p=num(i.preco), t=Math.round(q*p*100)/100; tot+=t; var tb=precoTabela(i.modelo); return {modelo:i.modelo,qtd:q,preco:p,total:t,tabela:tb,abaixo:!!(tb&&p<tb-0.004)}; });
+  return { local:true, uid:it.uid, sit: it.estado==='erro'?'Não aceito':'Aguardando sinal', erro:it.erro, cliente:d.cliente, numRep:d.numProposto||'(correção)', enviado:it.quando,
+           data:d.data, entrega:d.entrega, cond:d.forma+' '+d.prazo+' dias', total:tot, itens:itens };
+}
+function telaMeus(){
+  var f=ler('elloin_filtro_rep')||'';
+  var locais=minhaFila().filter(function(x){return x.tipo==='pedido';}).map(pedidoDaFila);
+  var clientesLocais=minhaFila().filter(function(x){return x.tipo==='cliente';});
+  var lista=locais.concat(D.pedidos).filter(function(p){ return !f || p.sit===f; });
+  $('conteudo').innerHTML=
+    (clientesLocais.length?'<div class="card">'+clientesLocais.map(function(c){ return '<div class="linha"><div><b>Cliente '+esc(c.nomeLocal.replace(/^[^\/]*\//,''))+'</b> '+
+        (c.estado==='erro'?'<span class="pill p-Recusado">NÃO ACEITO</span><div class="motivo">'+esc(c.erro)+'</div>':'<span class="pill p-Aguardando">AGUARDANDO SINAL</span>')+'</div>'+
+        (c.estado==='erro'?'<span><button class="btn ouro" onclick="corrigirCliente(\''+c.uid+'\')">Corrigir</button> <button class="btn claro" onclick="descartarFila(\''+c.uid+'\')">Descartar</button></span>':'')+'</div>'+
+        (c.estado==='erro'&&minhaFila().some(function(x){return x.tipo==='pedido'&&x.dados.cliente===c.nomeLocal;})?'<div class="dica">Os pedidos deste cliente estão guardados e vão depois que o cadastro for corrigido.</div>':''); }).join('')+'</div>':'')+
+    '<div class="filtros"><button class="btn claro" style="flex:0 0 auto" onclick="atualizarMeus(this)">Atualizar</button><select id="mF"><option value="">Todas as situações</option>'+
+    ['Aguardando sinal','Pendente','Aprovado','Lançado','Recusado','Cancelado'].map(function(s){return '<option'+(s===f?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div>'+
+    (lista.length? lista.map(function(p){
+      return '<div class="ped'+(p.local?' local':'')+'"><div class="cab"><div><div class="tit">'+esc(String(p.cliente).replace(/^[^\/]*\//,''))+(p.clienteNovo&&p.sit==='Pendente'?' <span class="pill novo">CLIENTE NOVO</span>':'')+'</div>'+
+        '<div class="sub">Pedido nº '+esc(p.numRep)+(p.local?' · lançado '+dhbr(p.enviado)+' · guardado no aparelho':' · registro '+esc(p.id)+' · enviado '+dhbr(p.enviado))+'</div></div>'+pill(p.sit)+'</div>'+
+        '<div class="dados"><div><b>Data do pedido</b>'+dbr(p.data)+'</div><div><b>Entrega</b>'+dbr(p.entrega)+'</div><div><b>Pagamento</b>'+esc(p.cond||'—')+'</div><div><b>Total</b>'+rs(p.total)+'</div></div>'+
+        blocoItens(p, true)+
+        (p.sit==='Não aceito'?'<div class="motivo"><b>O servidor não aceitou:</b> '+esc(p.erro)+'</div>':'')+
+        (p.sit==='Recusado'?'<div class="motivo"><b>Motivo da recusa:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+(p.reenviado?' · corrigido e reenviado no registro '+esc(p.reenviado):'')+'</small></div>':'')+
+        (p.sit==='Aprovado'?'<div class="dica" style="margin-top:8px">Aprovado por '+esc(p.decPor)+' em '+dhbr(p.decEm)+'.</div>':'')+
+        '<div class="acoes">'+
+          (p.sit==='Não aceito'?'<button class="btn ouro" onclick="corrigirFila(\''+p.uid+'\')">Corrigir e enviar</button><button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Descartar</button>':'')+
+          (p.sit==='Aguardando sinal'?'<button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Excluir do aparelho</button>':'')+
+          (p.sit==='Recusado'&&!p.reenviado?'<button class="btn ouro" onclick="corrigir(\''+p.id+'\')">Corrigir e reenviar</button>':'')+
+          (p.sit==='Pendente'?'<button class="btn claro" onclick="cancelar(\''+p.id+'\',this)">Cancelar pedido</button>':'')+
+          (p.local?'':'<button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto</button>')+
+        '</div></div>';
+    }).join('') : '<div class="card vazio">Nenhum pedido aqui ainda.</div>');
+  $('mF').onchange=function(){ guardar('elloin_filtro_rep',this.value); telaMeus(); };
+}
+function atualizarMeus(b){ ocupado(b,true,'…'); sincronizar().then(function(){ return recarregar(); }).then(function(){ aviso('Atualizado.'); }).catch(function(e){ aviso(semSinal(e)?'Sem sinal agora. O que está guardado vai quando o sinal voltar.':e.message,true); }).then(function(){ ocupado(b,false); }); }
+function corrigir(id){
+  var p=D.pedidos.filter(function(x){return x.id===id;})[0];
+  RASCUNHO={deId:id,cliente:p.cliente,numRep:p.numRep,forma:p.forma,prazo:p.prazo,data:p.data,entrega:p.entrega,obs:p.obs,itens:p.itens.map(function(i){return {modelo:i.modelo,qtd:i.qtd,preco:i.preco};})};
+  irPara('novo'); aviso('Corrija o que foi pedido e anexe o PDF de novo.');
+}
+function corrigirCliente(uid){
+  var it=FILA_MEM.filter(function(x){return x.uid===uid;})[0]; if(!it) return;
+  irPara('novo'); modalCliente(it);
+}
+function corrigirFila(uid){ var it=FILA_MEM.filter(function(x){return x.uid===uid;})[0]; if(!it) return; RASCUNHO=rascunhoDaFila(it); irPara('novo'); }
+function descartarFila(uid){ if(!confirm('Tirar este item do aparelho? Ele não será enviado.')) return; filaTirar(uid).then(function(){ montarAbas(); faixa(); irPara(ABA_ATUAL,true); }); }
+function cancelar(id,b){
+  if(!confirm('Cancelar este pedido?')) return;
+  ocupado(b,true); chamar('cancelarPedido',TOKEN,id).then(function(){ aviso('Pedido cancelado.'); return recarregar(); })
+    .catch(function(e){ aviso(semSinal(e)?'Sem sinal: para cancelar é preciso internet.':e.message,true); ocupado(b,false); });
+}
+function verAnexo(id,b){
+  ocupado(b,true,'Abrindo…');
+  chamar('linkAnexo',TOKEN,id).then(function(a){
+    var bin=atob(a.base64), u=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+    var url=URL.createObjectURL(new Blob([u],{type:a.tipo})); URLS.push(url);
+    var pdf=a.tipo==='application/pdf';
+    abrirModal('<div class="linha" style="margin-bottom:10px"><h3 style="margin:0;word-break:break-all">'+esc(a.nome)+'</h3>'+
+      '<button class="btn claro" onclick="fecharModal()">Fechar</button></div>'+
+      (pdf?'<div id="pdfPaginas" class="dica">Carregando o PDF…</div>':'<img class="foto" src="'+url+'">')+
+      '<div class="acoes"><a class="btn prim" href="'+url+'" download="'+esc(a.nome)+'" target="_blank" rel="noopener">Abrir / baixar</a>'+
+      (a.drive?'<a class="btn claro" href="'+esc(a.drive)+'" target="_blank" rel="noopener">Abrir no Google Drive</a>':'')+'</div>', true);
+    if(pdf) desenharPdf(u);
+  }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para ver o anexo é preciso internet.':e.message,true); }).then(function(){ ocupado(b,false); });
+}
+// PDF desenhado na tela (funciona também no celular, onde o navegador não abre PDF dentro do app)
+var PDFJS='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/';
+function carregarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise(function(ok,falha){ var s=document.createElement('script'); s.src=PDFJS+'pdf.min.js';
+    s.onload=function(){ window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js'; ok(window.pdfjsLib); }; s.onerror=falha; document.head.appendChild(s); });
+}
+function desenharPdf(bytes){
+  var alvo=$('pdfPaginas');
+  carregarPdfJs().then(function(lib){ return lib.getDocument({data:bytes}).promise; }).then(function(doc){
+    alvo.className=''; alvo.innerHTML='';
+    var n=Math.min(doc.numPages,6), cadeia=Promise.resolve();
+    for(var p=1;p<=n;p++) (function(p){ cadeia=cadeia.then(function(){ return doc.getPage(p); }).then(function(pg){
+      var larg=Math.min(alvo.clientWidth||800,1000), v1=pg.getViewport({scale:1}), esc_=larg/v1.width*(window.devicePixelRatio||1), vp=pg.getViewport({scale:esc_});
+      var c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height; c.style.width='100%'; c.style.border='1px solid #DCE2EC'; c.style.borderRadius='8px'; c.style.marginBottom='8px';
+      alvo.appendChild(c); return pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise; }); })(p);
+    if(doc.numPages>n) cadeia.then(function(){ alvo.insertAdjacentHTML('beforeend','<p class="dica">Mostrando 6 de '+doc.numPages+' páginas. Baixe para ver tudo.</p>'); });
+  }).catch(function(){ if(alvo) alvo.innerHTML='Não deu para mostrar o PDF aqui. Use o botão Abrir / baixar.'; });
+}
+
+/* ---------------------------------------------------------------- RESUMO DE VENDAS (representante: o dele; gestor: todos) */
+var NOMES_MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function opcoesMes(sel){
+  var h=hojeLocal(), a=Number(h.slice(0,4)), m=Number(h.slice(5,7)), out='';
+  for(var k=0;k<14;k++){ var v=a+'-'+dois(m); out+='<option value="'+v+'"'+(v===sel?' selected':'')+'>'+NOMES_MES[m-1]+'/'+a+'</option>'; m--; if(m<1){m=12;a--;} }
+  if(sel && out.indexOf('value="'+sel+'"')<0) out='<option value="'+esc(sel)+'" selected>'+esc(dbr(sel))+'</option>'+out;
+  return out;
+}
+function resumoLocal(mes){            // sem sinal: calcula com os pedidos guardados no aparelho
+  var o={login:D.eu.login,nome:D.eu.nome,vendido:0,pedidos:0,pecas:0,pendente:0,nPend:0,recusados:0,abaixo:0,clientes:{},modelos:{}};
+  D.pedidos.forEach(function(p){
+    if(p.mes!==mes) return;
+    if(p.sit==='Aprovado'||p.sit==='Lançado'){ o.vendido+=p.total; o.pedidos++; if(p.alerta) o.abaixo++; o.clientes[p.cliente]=(o.clientes[p.cliente]||0)+p.total;
+      p.itens.forEach(function(i){ o.pecas+=i.qtd; var m=o.modelos[i.modelo]=o.modelos[i.modelo]||{qtd:0,valor:0}; m.qtd+=i.qtd; m.valor+=i.total; }); }
+    else if(p.sit==='Pendente'){ o.pendente+=p.total; o.nPend++; } else if(p.sit==='Recusado' && !p.reenviado) o.recusados++;
+  });
+  o.clientes=Object.keys(o.clientes).map(function(c){return {cliente:c,valor:o.clientes[c]};}).sort(function(a,b){return b.valor-a.valor;}).slice(0,10);
+  o.modelos=Object.keys(o.modelos).map(function(m){return {modelo:m,qtd:o.modelos[m].qtd,valor:o.modelos[m].valor};}).sort(function(a,b){return b.valor-a.valor;});
+  return {mes:mes, reps:o.pedidos||o.nPend||o.recusados?[o]:[], total:o.vendido, local:true};
+}
+function telaResumo(){
+  var mes=ler('elloin_resumo_mes')||hojeLocal().slice(0,7);
+  $('conteudo').innerHTML='<div class="filtros"><select id="rMes">'+opcoesMes(mes)+'</select></div><div id="rCorpo"><div class="carregando">Calculando…</div></div>';
+  $('rMes').onchange=function(){ guardar('elloin_resumo_mes',this.value); telaResumo(); };
+  var chaveR='elloin_resumo_'+D.eu.login+'_'+mes;
+  chamar('resumo',TOKEN,mes).then(function(r){ guardar(chaveR, JSON.stringify(r)); desenharResumo(r); })
+    .catch(function(e){
+      var g=null; try{ g=JSON.parse(ler(chaveR)||'null'); }catch(x){}
+      if(g){ g.guardado=true; desenharResumo(g); }
+      else if(D.eu.perfil==='rep' && semSinal(e)) desenharResumo(resumoLocal(mes));
+      else $('rCorpo').innerHTML='<div class="card vazio">'+(semSinal(e)?'Sem sinal: o resumo precisa de internet.':esc(e.message))+'</div>';
+    });
+}
+function desenharResumo(r){
+  var aviso_ = r.guardado||r.local ? '<p class="dica">Sem sinal: mostrando o último resumo guardado no aparelho.</p>' : '';
+  var nomeMes = NOMES_MES[Number(r.mes.slice(5,7))-1]+'/'+r.mes.slice(0,4);
+  if(D.eu.perfil==='rep'){
+    var o=r.reps[0]||{vendido:0,pedidos:0,pecas:0,pendente:0,nPend:0,recusados:0,abaixo:0,clientes:[],modelos:[]};
+    $('rCorpo').innerHTML=aviso_+
+      '<div class="kpis"><div><small>Vendido em '+nomeMes+'</small><b>'+rs(o.vendido)+'</b><span>aprovados e lançados</span></div>'+
+      '<div><small>Pedidos</small><b>'+o.pedidos+'</b><span>'+nbr(o.pecas)+' peças</span></div>'+
+      '<div><small>Aguardando aprovação</small><b>'+rs(o.pendente)+'</b><span>'+o.nPend+' pedido(s)</span></div>'+
+      '<div><small>Recusados</small><b>'+o.recusados+'</b><span>'+(o.abaixo?o.abaixo+' aprovado(s) abaixo da tabela':'para corrigir')+'</span></div></div>'+
+      tabelaResumo('Por cliente',['Cliente','Valor'],o.clientes.map(function(c){return [esc(c.cliente.replace(/^[^\/]*\//,'')),rs(c.valor)];}))+
+      tabelaResumo('Por modelo',['Modelo','Peças','Valor'],o.modelos.map(function(m){return [esc(m.modelo),nbr(m.qtd),rs(m.valor)];}));
+  } else {
+    $('rCorpo').innerHTML=aviso_+
+      '<div class="kpis"><div><small>Vendido em '+nomeMes+' (todos)</small><b>'+rs(r.total)+'</b><span>aprovados e lançados</span></div>'+
+      '<div><small>Aguardando aprovação</small><b>'+rs(r.reps.reduce(function(s,o){return s+o.pendente;},0))+'</b><span>'+r.reps.reduce(function(s,o){return s+o.nPend;},0)+' pedido(s)</span></div></div>'+
+      tabelaResumo('Por representante',['Representante','Vendido','Pedidos','Peças','Aguardando','Abaixo da tabela'],
+        r.reps.map(function(o){return [esc(o.nome),rs(o.vendido),o.pedidos,nbr(o.pecas),rs(o.pendente)+' ('+o.nPend+')',o.abaixo||'—'];}).concat(r.reps.length?[['<b>Total</b>','<b>'+rs(r.total)+'</b>','','','','']]:[]));
+  }
+}
+function tabelaResumo(titulo,cab,linhas){
+  return '<div class="card"><h3>'+titulo+'</h3>'+(linhas.length?'<table class="it"><tr>'+cab.map(function(c,k){return '<th'+(k?' class="n"':'')+'>'+c+'</th>';}).join('')+'</tr>'+
+    linhas.map(function(l){return '<tr>'+l.map(function(c,k){return '<td'+(k?' class="n"':'')+'>'+c+'</td>';}).join('')+'</tr>';}).join('')+'</table>':'<p class="dica">Nada neste mês.</p>')+'</div>';
+}
+
+/* ---------------------------------------------------------------- GESTOR: aprovar */
+function cartaoGestor(p,decidir){
+  var c=p.cli||{};
+  return '<div class="ped'+(p.alerta&&p.sit==='Pendente'?' comalerta':'')+'" id="ped'+p.id+'"><div class="cab"><div><div class="tit">'+esc(p.cliente)+(p.clienteNovo?' <span class="pill novo">CLIENTE NOVO</span>':'')+'</div>'+
+    '<div class="sub">'+esc(p.repNome)+' · pedido nº '+esc(p.numRep)+' · registro '+esc(p.id)+' · enviado '+dhbr(p.enviado)+'</div></div>'+pill(p.sit)+'</div>'+
+    (p.alerta?'<div class="alerta">⚠ <b>Preço abaixo da tabela.</b> '+esc(p.alerta)+'</div>':'')+
+    (p.clienteNovo||c.razao?'<div class="dados"><div><b>Razão social</b>'+esc(c.razao||'—')+'</div><div><b>CNPJ/CPF</b>'+esc(c.doc||'—')+'</div><div><b>Cidade</b>'+esc(c.cidade||'—')+'</div>'+
+      (c.tel?'<div><b>Telefone / WhatsApp</b>'+esc(c.tel)+' · '+esc(c.whats||'')+'</div><div><b>E-mail</b>'+esc(c.email||'')+'</div><div><b>Endereço</b>'+esc(c.end||'')+'</div>':'')+'</div>':'')+
+    '<div class="dados"><div><b>Data do pedido</b>'+dbr(p.data)+'</div><div><b>Entrega</b>'+dbr(p.entrega)+'</div><div><b>Competência</b>'+dbr(p.mes)+'</div><div><b>Pagamento</b>'+esc(p.cond||'—')+'</div></div>'+
+    (p.obs?'<div class="dica" style="margin-top:8px"><b>Obs.:</b> '+esc(p.obs)+'</div>':'')+
+    blocoItens(p, true)+
+    (p.sit==='Recusado'?'<div class="motivo"><b>Motivo:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+'</small></div>':'')+
+    (p.aviso?'<div class="aviso"><b>A planilha não conseguiu lançar:</b> '+esc(p.aviso)+'</div>':'')+
+    (p.sit==='Lançado'?'<div class="dica" style="margin-top:8px">Lançado na planilha em '+dhbr(p.lancEm)+' ('+esc(p.lancNum)+').</div>':'')+
+    (decidir?
+      '<div class="grade" style="margin-top:12px"><div><label>Mês (competência)</label><select id="aj_mes_'+p.id+'">'+opcoesMes(p.mes)+'</select></div>'+
+      '<div><label>Data da entrega</label><input type="date" id="aj_ent_'+p.id+'" value="'+esc(p.entrega)+'" min="'+esc(p.data)+'"></div></div>':'')+
+    '<div class="acoes"><button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto do pedido</button>'+
+      (decidir?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar</button><button class="btn verde" onclick="aprovar(\''+p.id+'\',this)">Aprovar</button>':'')+
+      (p.sit==='Aprovado'?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar (ainda não lançado)</button>':'')+
+    '</div></div>';
+}
+function telaAprovar(){
+  var l=D.pedidos.filter(function(p){return p.sit==='Pendente';}).reverse();   // mais antigos primeiro
+  var aprov=D.pedidos.filter(function(p){return p.sit==='Aprovado';});
+  var comAviso=aprov.filter(function(p){return p.aviso;}).length, comAlerta=l.filter(function(p){return p.alerta;}).length;
+  $('conteudo').innerHTML=
+    '<div class="card linha" style="justify-content:flex-start"><div><b style="font-size:22px">'+l.length+'</b> para aprovar'+(comAlerta?' <span class="pill p-Recusado">'+comAlerta+' abaixo da tabela</span>':'')+'</div>'+
+    '<div><b style="font-size:22px">'+aprov.length+'</b> aprovados aguardando a planilha'+(comAviso?' <span class="pill p-Pendente">'+comAviso+' com aviso</span>':'')+'</div>'+
+    '<div class="esp" style="flex:1"></div><button class="btn claro" onclick="recarregar().then(function(){aviso(\'Atualizado.\')}).catch(function(e){aviso(e.message,true)})">Atualizar</button>'+
+    '<div class="dica" style="flex-basis:100%">'+(D.planilha&&D.planilha.versao?'Planilha de fechamento em uso: <b>v'+esc(D.planilha.versao)+'</b> ('+esc(D.planilha.arquivo)+', última importação '+dhbr(D.planilha.em)+'). Versão mais antiga é recusada.':'Nenhuma importação feita ainda.')+'</div></div>'+
+    (l.length? l.map(function(p){return cartaoGestor(p,true);}).join('') : '<div class="card vazio">Nenhum pedido esperando aprovação. ✓</div>');
+}
+function aprovar(id,b){
+  var p=D.pedidos.filter(function(x){return x.id===id;})[0];
+  if(p && p.alerta && !confirm('ATENÇÃO: preço abaixo da tabela.\n\n'+p.alerta+'\n\nAprovar mesmo assim? (Para o representante corrigir, use Recusar.)')) return;
+  ocupado(b,true,'Aprovando…');
+  chamar('decidir',TOKEN,id,true,'',{mes:$('aj_mes_'+id).value,entrega:$('aj_ent_'+id).value}).then(function(r){
+    posDecisao(id,r,'aprovado');
+  }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para aprovar é preciso internet.':e.message,true); ocupado(b,false); });
+}
+var MOTIVOS=['Preço abaixo da tabela','Prazo de pagamento não aceito','Cliente com pendência financeira','Dados diferentes do PDF','Modelo sem estoque / fora de linha','Falta CNPJ ou dados do cliente'];
+function recusar(id){
+  var p=D.pedidos.filter(function(x){return x.id===id;})[0];
+  abrirModal('<h2>Recusar pedido nº '+esc(p.numRep)+'</h2><p class="sub">'+esc(p.cliente)+' · '+rs(p.total)+' · '+esc(p.repNome)+'</p>'+
+    '<label>Motivo (o representante vai ler) <span class="obr">*</span></label><div class="chips">'+MOTIVOS.map(function(m){return '<button type="button">'+esc(m)+'</button>';}).join('')+'</div>'+
+    '<textarea id="rMot" maxlength="500" placeholder="Explique o que ele precisa corrigir">'+(p.alerta?esc('Preço abaixo da tabela: '+p.alerta.replace(/^\d+ item\(ns\) abaixo da tabela: /,'')+'. Corrija o valor.'):'')+'</textarea>'+
+    '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn verm" id="rOk">Recusar pedido</button></div>');
+  cada(document.querySelectorAll('.chips button'),function(c){ c.onclick=function(){ var t=$('rMot'); t.value = (t.value?t.value.trim()+'. ':'') + c.textContent; t.focus(); }; });
+  $('rOk').onclick=function(){
+    var b=this; ocupado(b,true,'Recusando…');
+    chamar('decidir',TOKEN,id,false,$('rMot').value,{}).then(function(r){ posDecisao(id,r,'recusado'); })
+      .catch(function(e){ aviso(semSinal(e)?'Sem sinal: para recusar é preciso internet.':e.message,true); ocupado(b,false); });
+  };
+}
+function posDecisao(id,r,palavra){
+  abrirModal('<h2>Pedido '+palavra+' ✓</h2>'+
+    (palavra==='recusado'?'<p>O representante já vê o motivo no app. Avise também pelo WhatsApp:</p>':'<p>Ele entra na planilha de fechamento no próximo <b>IMPORTAR DO APP</b>. Quer avisar o representante?</p>')+
+    '<div class="acoes"><button class="btn claro" onclick="fecharModal()">'+(palavra==='recusado'?'Agora não':'Não precisa')+'</button>'+
+    (r.whats?'<a class="btn whats" href="'+esc(r.whats)+'" target="_blank" rel="noopener" onclick="setTimeout(fecharModal,300)">Avisar no WhatsApp</a>':'<span class="dica">Representante sem WhatsApp cadastrado.</span>')+'</div>');
+  recarregar().catch(function(){});
+}
+
+/* ---------------------------------------------------------------- GESTOR: histórico */
+function telaHistorico(){
+  var f; try{ f=JSON.parse(ler('elloin_filtro_g')||'{}'); }catch(e){ f={}; }
+  var reps={}; D.pedidos.forEach(function(p){ reps[p.login]=p.repNome; });
+  var lista=D.pedidos.filter(function(p){ return (!f.sit||p.sit===f.sit)&&(!f.rep||p.login===f.rep)&&(!f.q||(p.cliente+' '+p.numRep+' '+p.id).toLowerCase().indexOf(f.q.toLowerCase())>=0); });
+  var tot=lista.filter(function(p){return p.sit==='Aprovado'||p.sit==='Lançado';}).reduce(function(s,p){return s+p.total;},0);
+  $('conteudo').innerHTML='<div class="filtros"><select id="hS"><option value="">Todas as situações</option>'+['Pendente','Aprovado','Lançado','Recusado','Cancelado'].map(function(s){return '<option'+(s===f.sit?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+    '<select id="hR"><option value="">Todos os representantes</option>'+Object.keys(reps).map(function(k){return '<option value="'+esc(k)+'"'+(k===f.rep?' selected':'')+'>'+esc(reps[k])+'</option>';}).join('')+'</select>'+
+    '<input id="hQ" placeholder="Buscar cliente ou nº" value="'+esc(f.q||'')+'"></div>'+
+    '<p class="dica">'+lista.length+' pedidos · aprovados/lançados nesta lista: <b>'+rs(tot)+'</b></p>'+
+    (lista.length?lista.map(function(p){return cartaoGestor(p,false);}).join(''):'<div class="card vazio">Nada encontrado.</div>');
+  var salvar=function(){ guardar('elloin_filtro_g',JSON.stringify({sit:$('hS').value,rep:$('hR').value,q:$('hQ').value})); telaHistorico(); };
+  $('hS').onchange=salvar; $('hR').onchange=salvar; $('hQ').onchange=salvar;
+}
+
+/* ---------------------------------------------------------------- GESTOR: tabela de preços */
+var TAB_SEL = '(todos)';
+function telaPrecos(){
+  var reps=[]; (D.usuarios||[]).forEach(function(u){ if(u.perfil==='rep' && u.vendedor && reps.indexOf(u.vendedor)<0) reps.push(u.vendedor); });
+  var pad=(D.precos||{})['(todos)']||{}, dele=TAB_SEL==='(todos)'?pad:((D.precos||{})[TAB_SEL]||{});
+  $('conteudo').innerHTML='<div class="card"><h2>Tabela de preços (preço mínimo de venda)</h2>'+
+    '<p class="dica">Abaixo destes valores o representante é avisado e o pedido chega para você com alerta. A tabela padrão vale para todos; na tabela de um representante, o que ficar vazio usa a padrão.</p>'+
+    '<div class="filtros"><select id="tSel"><option value="(todos)">Tabela padrão (todos os representantes)</option>'+reps.map(function(r){ return '<option value="'+esc(r)+'"'+(r===TAB_SEL?' selected':'')+'>Tabela de '+esc(r)+'</option>'; }).join('')+'</select></div>'+
+    '<table class="it"><tr><th>Modelo</th><th class="n">Preço mínimo (R$)</th></tr>'+
+    D.modelos.map(function(m,k){ var v=dele[normNome(m.nome)], ph=TAB_SEL!=='(todos)'&&pad[normNome(m.nome)]?'padrão '+fmtValor(pad[normNome(m.nome)]):'0,00';
+      return '<tr><td>'+esc(m.nome)+'</td><td class="n"><input class="tPreco" data-m="'+esc(m.nome)+'" inputmode="numeric" pattern="[0-9]*" placeholder="'+esc(ph)+'" value="'+(v?esc(fmtValor(v)):'')+'" style="max-width:150px;text-align:right"></td></tr>'; }).join('')+
+    '</table><div class="acoes">'+(TAB_SEL!=='(todos)'?'<button class="btn claro" id="tCopiar">Copiar a tabela padrão</button>':'')+'<button class="btn prim" id="tSalvar">Salvar tabela</button></div></div>';
+  cada(document.querySelectorAll('.tPreco'),function(i){ i.addEventListener('input',function(){ mascaraValor(i); }); });
+  $('tSel').value=TAB_SEL; $('tSel').onchange=function(){ TAB_SEL=this.value; telaPrecos(); };
+  if($('tCopiar')) $('tCopiar').onclick=function(){ cada(document.querySelectorAll('.tPreco'),function(i){ var v=pad[normNome(i.getAttribute('data-m'))]; if(v) i.value=fmtValor(v); }); };
+  $('tSalvar').onclick=function(){
+    var b=this, lista=Array.prototype.map.call(document.querySelectorAll('.tPreco'),function(i){ return {modelo:i.getAttribute('data-m'), preco:i.value.trim()}; });
+    ocupado(b,true,'Salvando…');
+    chamar('salvarPrecos',TOKEN,TAB_SEL==='(todos)'?'':TAB_SEL,lista).then(function(r){ D.precos=r.precos; guardar('elloin_dados',JSON.stringify(D)); aviso('Tabela salva. Os representantes recebem na próxima vez que abrirem o app com sinal.'); telaPrecos(); })
+      .catch(function(e){ aviso(semSinal(e)?'Sem sinal: para salvar a tabela é preciso internet.':e.message,true); ocupado(b,false); });
+  };
+}
+
+/* ---------------------------------------------------------------- GESTOR: representantes */
+function telaUsuarios(){
+  $('conteudo').innerHTML='<div class="card"><div class="linha"><h2 style="margin:0">Representantes e gestores</h2>'+
+    '<button class="btn ouro" onclick="modalUsuario()">+ Novo usuário</button></div>'+
+    '<table class="it"><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Na planilha</th><th>WhatsApp</th><th></th></tr>'+
+    D.usuarios.map(function(u,k){ return '<tr style="'+(u.ativo?'':'opacity:.5')+'"><td>'+esc(u.nome)+'</td><td>'+esc(u.login)+'</td><td>'+esc(u.perfil)+'</td><td>'+esc(u.vendedor||'—')+'</td><td>'+esc(u.whats||'—')+'</td>'+
+      '<td class="n"><button class="linkbtn" onclick="modalUsuario('+k+')">editar</button></td></tr>'; }).join('')+'</table>'+
+    '<p class="dica">O nome "na planilha" (coluna Representantes da Cad_Listas) liga o representante aos clientes dele (ex.: vinicius → clientes vinicius/…). Cada um só enxerga os próprios clientes, pedidos, resumo e tabela de preços.</p></div>';
+}
+function modalUsuario(k){
+  var u = k!=null ? D.usuarios[k] : {perfil:'rep',ativo:true};
+  var vend = D.vendedores.length ? '<select id="uV"><option value="">—</option>'+D.vendedores.map(function(v){return '<option'+(v===u.vendedor?' selected':'')+'>'+esc(v)+'</option>';}).join('')+'</select>'
+                                 : '<input id="uV" value="'+esc(u.vendedor||'')+'" placeholder="ex.: vinicius">';
+  abrirModal('<h2>'+(k!=null?'Editar usuário':'Novo usuário')+'</h2><div class="grade">'+
+    '<div><label>Login</label><input id="uL" value="'+esc(u.login||'')+'"'+(k!=null?' readonly':'')+' autocapitalize="none"></div>'+
+    '<div><label>Perfil</label><select id="uP"><option value="rep"'+(u.perfil==='rep'?' selected':'')+'>Representante</option><option value="gestor"'+(u.perfil==='gestor'?' selected':'')+'>Gestor</option></select></div>'+
+    '<div class="tudo"><label>Nome</label><input id="uN" value="'+esc(u.nome||'')+'"></div>'+
+    '<div><label>Representante na planilha (Cad_Listas)</label>'+vend+'</div>'+
+    '<div><label>WhatsApp (com DDD)</label><input id="uW" inputmode="tel" value="'+esc(u.whats||'')+'"></div>'+
+    '<div><label>'+(k!=null?'Nova senha (deixe vazio para manter)':'Senha')+'</label><input id="uS" type="text" autocomplete="new-password"></div>'+
+    '<div><label>Acesso</label><select id="uA"><option value="1"'+(u.ativo?' selected':'')+'>Ativo</option><option value="0"'+(u.ativo?'':' selected')+'>Bloqueado</option></select></div>'+
+    '</div><div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn prim" id="uOk">Salvar</button></div>');
+  $('uOk').onclick=function(){
+    var b=this; ocupado(b,true,'Salvando…');
+    chamar('salvarUsuario',TOKEN,{login:$('uL').value,perfil:$('uP').value,nome:$('uN').value,vendedor:$('uV').value,whats:$('uW').value,senha:$('uS').value,ativo:$('uA').value==='1',novo:k==null})
+      .then(function(r){ fecharModal(); aviso(r.msg); return recarregar(); }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: é preciso internet.':e.message,true); ocupado(b,false); });
+  };
+}
+
+/* ---------------------------------------------------------------- instalar no celular (para abrir sem sinal) */
+var PROMPT_INSTALAR=null;
+window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); PROMPT_INSTALAR=e; dicaInstalar(); });
+function instalado(){ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }
+function dicaInstalar(){
+  var el=$('dicaInst'); if(!el) return;
+  if(instalado() || ler('elloin_dica_inst')==='nao'){ el.className='oculto'; return; }
+  var ios=/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  if(PROMPT_INSTALAR) el.innerHTML='Para usar sem internet, instale o app neste aparelho. <button class="btn ouro" id="bInst">Instalar</button> <button class="linkbtn" id="bInstNao">agora não</button>';
+  else if(ios) el.innerHTML='Para usar sem internet: toque em <b>Compartilhar</b> (quadrado com seta) e depois em <b>Adicionar à Tela de Início</b>. Abra sempre pelo ícone. <button class="linkbtn" id="bInstNao">ok</button>';
+  else el.innerHTML='Para usar sem internet: no menu ⋮ do navegador, toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>. Abra sempre pelo ícone. <button class="linkbtn" id="bInstNao">ok</button>';
+  el.className='dicainst';
+  if($('bInst')) $('bInst').onclick=function(){ PROMPT_INSTALAR.prompt(); PROMPT_INSTALAR=null; el.className='oculto'; };
+  if($('bInstNao')) $('bInstNao').onclick=function(){ guardar('elloin_dica_inst','nao'); el.className='oculto'; };
+}
+
+/* ---------------------------------------------------------------- início */
+(function(){ try{ var d=document.createElement('div'); d.style.display='flex'; d.style.flexDirection='column'; d.style.rowGap='1px';
+  d.appendChild(document.createElement('div')); d.appendChild(document.createElement('div')); document.body.appendChild(d);
+  var ok=d.scrollHeight===1; d.parentNode.removeChild(d); if(!ok) document.documentElement.className+=' semgap'; }catch(e){} })();
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+  try{ navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){}
+}
+$('conteudo').addEventListener('input',function(e){ if(e.target && e.target.id!=='mF' && e.target.id!=='rMes' && e.target.id!=='tSel' && ['hS','hR','hQ'].indexOf(e.target.id)<0) FORM_SUJO=true; });
+$('conteudo').addEventListener('change',function(e){ if(e.target && /^aj_|^pCliente$|^tPreco/.test(e.target.id||e.target.className)) FORM_SUJO=true; });
+ONLINE = navigator.onLine!==false;
+TOKEN = ler('elloin_token');
+if (TOKEN) iniciar(); else mostrarLogin();
+
+</script>
+</body>
+</html>
