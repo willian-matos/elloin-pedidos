@@ -272,6 +272,10 @@ function dhbr(s){ if(!s) return ''; var t=String(s).split(' '); return dbr(t[0])
 function num(v){ var s=String(v==null?'':v).trim().replace(/\s/g,''); if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,''); return s===''?NaN:Number(s); }
 function dois(n){ return (n<10?'0':'')+n; }
 function hojeLocal(){ var d=new Date(); return d.getFullYear()+'-'+dois(d.getMonth()+1)+'-'+dois(d.getDate()); }
+function isoDias(base,dias){ var d=base?new Date(Number(base.slice(0,4)),Number(base.slice(5,7))-1,Number(base.slice(8,10))):new Date(); d.setDate(d.getDate()+dias); return d.getFullYear()+'-'+dois(d.getMonth()+1)+'-'+dois(d.getDate()); }
+function dataBr(iso){ return String(iso).slice(8,10)+'/'+String(iso).slice(5,7)+'/'+String(iso).slice(0,4); }
+/* limites contra erro de digitação (iguais aos do servidor) */
+var LIMITE_QTD=100000, LIMITE_PRECO=1000, ALERTA_QTD=20000, ALERTA_VEZES_TABELA=3, DIAS_PEDIDO_ANTIGO=90;
 function agoraLocal(){ var d=new Date(); return hojeLocal()+' '+dois(d.getHours())+':'+dois(d.getMinutes()); }
 function normNome(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
 function novoUid(){ return 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
@@ -495,7 +499,7 @@ function telaNovo(){
       '<div class="tudo"><label>Nº do pedido</label><div class="numauto" id="pNum">'+esc(numMostrado)+'<small>'+(r.deId?'(mesmo nº do pedido recusado)':'(automático)')+'</small></div></div>'+
       '<div class="tudo"><label>Forma de pagamento <span class="obr">*</span></label><div class="seg" id="pForma">'+D.formas.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.forma===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
       '<div class="tudo"><label>Prazo (dias) <span class="obr">*</span></label><div class="seg" id="pPrazo">'+D.prazos.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.prazo===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
-      '<div><label>Data do pedido <span class="obr">*</span></label><input id="pData" type="date" max="'+hojeLocal()+'" value="'+esc(r.data||hojeLocal())+'"></div>'+
+      '<div><label>Data do pedido <span class="obr">*</span></label><input id="pData" type="date" min="'+isoDias('',-DIAS_PEDIDO_ANTIGO)+'" max="'+hojeLocal()+'" value="'+esc(r.data||hojeLocal())+'"></div>'+
       '<div><label>Data da entrega <span class="obr">*</span></label><input id="pEntrega" type="date" value="'+esc(r.entrega||'')+'"><div class="dica">Previsão combinada com o cliente</div></div>'+
     '</div>'+
     '<h3 style="margin-top:18px">Itens</h3><div id="pItens"></div>'+
@@ -514,8 +518,8 @@ function telaNovo(){
   $('pMais').onclick=function(){ addItem({}); };
   cada([$('pForma'),$('pPrazo')],function(g){ cada(g.querySelectorAll('button'),function(b){ b.onclick=function(){ cada(g.querySelectorAll('button'),function(x){ x.className=''; }); b.className='sel'; FORM_SUJO=true; }; }); });
   $('pCliente').onchange=function(){ if(this.value==='__novo'){ this.value=''; modalCliente(); } infoCliente(); FORM_SUJO=true; };
-  $('pData').onchange=function(){ $('pEntrega').min=this.value; };
-  $('pEntrega').min=$('pData').value;
+  $('pData').onchange=function(){ $('pEntrega').min=this.value; if(/^\d{4}-\d{2}-\d{2}$/.test(this.value)) $('pEntrega').max=isoDias(this.value,365); };
+  $('pEntrega').min=$('pData').value; if(/^\d{4}-\d{2}-\d{2}$/.test($('pData').value)) $('pEntrega').max=isoDias($('pData').value,365);
   $('pAnexo').onchange=lerAnexo;
   if($('pDescartar')) $('pDescartar').onclick=function(){ RASCUNHO=null; FORM_SUJO=false; telaNovo(); };
   $('fPed').onsubmit=enviarPedido;
@@ -584,10 +588,16 @@ function enviarPedido(e){
   var itens=itensDaTela().filter(function(i){return i.modelo||i.qtd||i.preco;}).map(function(i){return {modelo:i.modelo,qtd:i.qtd,preco:i.preco};});
   var d={cliente:$('pCliente').value, forma:escolhido('pForma'), prazo:escolhido('pPrazo'), data:$('pData').value,
          entrega:$('pEntrega').value, obs:$('pObs').value.trim(), itens:itens, deId:RASCUNHO&&RASCUNHO.deId||''};
-  var falta = !d.cliente?'Escolha o cliente.': !d.forma?'Escolha a forma de pagamento (Pix ou Boleto).': !d.prazo?'Escolha o prazo.': !d.data?'Informe a data do pedido.': d.data>hojeLocal()?'A data do pedido não pode ser futura.': !d.entrega?'Informe a data da entrega.':
-              d.entrega<d.data?'A entrega não pode ser antes do pedido.': !itens.length?'Inclua pelo menos um item.': !ANEXO?'Anexe o PDF ou a foto do pedido.':'';
+  var falta = !d.cliente?'Escolha o cliente.': !d.forma?'Escolha a forma de pagamento (Pix ou Boleto).': !d.prazo?'Escolha o prazo.': !d.data?'Informe a data do pedido.': d.data>hojeLocal()?'A data do pedido não pode ser futura.':
+              d.data<isoDias('',-DIAS_PEDIDO_ANTIGO)?'A data do pedido ('+dataBr(d.data)+') é de mais de '+DIAS_PEDIDO_ANTIGO+' dias atrás. Confira a data (o ano também).': !d.entrega?'Informe a data da entrega.':
+              d.entrega<d.data?'A entrega não pode ser antes do pedido.': d.entrega>isoDias(d.data,365)?'A data da entrega ('+dataBr(d.entrega)+') está mais de 1 ano depois do pedido. Confira o ano.': !itens.length?'Inclua pelo menos um item.': !ANEXO?'Anexe o PDF ou a foto do pedido.':'';
   if(!falta) itens.forEach(function(it,k){ if(!falta && (!it.modelo || !(num(it.qtd)>0) || !(num(it.preco)>0))) falta='Item '+(k+1)+': confira modelo, quantidade e valor.'; });
+  if(!falta) itens.forEach(function(it,k){
+    if(!falta && num(it.qtd)>LIMITE_QTD) falta='Item '+(k+1)+' ('+it.modelo+'): quantidade muito alta (mais de 100.000 peças). Confira.';
+    if(!falta && num(it.preco)>LIMITE_PRECO) falta='Item '+(k+1)+' ('+it.modelo+'): valor da toalha muito alto (acima de R$ 1.000,00). Confira.'; });
   if(falta){ aviso(falta,true); return; }
+  var estranhos=itens.filter(function(it){ var t=precoTabela(it.modelo); return num(it.qtd)>ALERTA_QTD || (t && num(it.preco)>t*ALERTA_VEZES_TABELA); });
+  if(estranhos.length && !confirm('Confira, pode ser erro de digitação:\n'+estranhos.map(function(it){ return '• '+it.modelo+': '+it.qtd+' peças a '+it.preco; }).join('\n')+'\n\nEstá certo? (OK = enviar; Cancelar = corrigir)')) return;
   var abaixo=itens.filter(function(it){ var t=precoTabela(it.modelo); return t && num(it.preco)<t-0.004; });
   if(abaixo.length && !confirm(abaixo.length+' item(ns) com valor abaixo da sua tabela de preços:\n'+abaixo.map(function(it){ return '• '+it.modelo+': '+it.preco+' (tabela '+fmtValor(precoTabela(it.modelo))+')'; }).join('\n')+'\n\nO gestor vai receber um alerta. Enviar mesmo assim?')) return;
   var filaUid = RASCUNHO&&RASCUNHO.filaUid, uid = filaUid || novoUid();
@@ -804,7 +814,7 @@ function resumoLocal(mes){            // sem sinal: calcula com os pedidos guard
   var o={login:D.eu.login,nome:D.eu.nome,vendido:0,pedidos:0,pecas:0,pendente:0,nPend:0,recusados:0,abaixo:0,clientes:{},modelos:{}};
   D.pedidos.forEach(function(p){
     if(p.mes!==mes) return;
-    if(p.sit==='Aprovado'||p.sit==='Lançado'){ o.vendido+=p.total; o.pedidos++; if(p.alerta) o.abaixo++; o.clientes[p.cliente]=(o.clientes[p.cliente]||0)+p.total;
+    if(p.sit==='Aprovado'||p.sit==='Lançado'){ o.vendido+=p.total; o.pedidos++; if(/abaixo da tabela/.test(p.alerta||'')) o.abaixo++; o.clientes[p.cliente]=(o.clientes[p.cliente]||0)+p.total;
       p.itens.forEach(function(i){ o.pecas+=i.qtd; var m=o.modelos[i.modelo]=o.modelos[i.modelo]||{qtd:0,valor:0}; m.qtd+=i.qtd; m.valor+=i.total; }); }
     else if(p.sit==='Pendente'){ o.pendente+=p.total; o.nPend++; } else if(p.sit==='Recusado' && !p.reenviado) o.recusados++;
   });
@@ -855,7 +865,7 @@ function cartaoGestor(p,decidir){
   var c=p.cli||{};
   return '<div class="ped'+(p.alerta&&p.sit==='Pendente'?' comalerta':'')+'" id="ped'+p.id+'"><div class="cab"><div><div class="tit">'+esc(p.cliente)+(p.clienteNovo?' <span class="pill novo">CLIENTE NOVO</span>':'')+'</div>'+
     '<div class="sub">'+esc(p.repNome)+' · pedido nº '+esc(p.numRep)+' · registro '+esc(p.id)+' · enviado '+dhbr(p.enviado)+'</div></div>'+pill(p.sit)+'</div>'+
-    (p.alerta?'<div class="alerta">⚠ <b>Preço abaixo da tabela.</b> '+esc(p.alerta)+'</div>':'')+
+    (p.alerta?'<div class="alerta">⚠ <b>'+(/abaixo da tabela/.test(p.alerta)?'Preço abaixo da tabela.':'Atenção.')+'</b> '+esc(p.alerta)+'</div>':'')+
     (p.clienteNovo||c.razao?'<div class="dados"><div><b>Razão social</b>'+esc(c.razao||'—')+'</div><div><b>CNPJ/CPF</b>'+esc(c.doc||'—')+'</div><div><b>Cidade</b>'+esc(c.cidade||'—')+'</div>'+
       (c.tel?'<div><b>Telefone / WhatsApp</b>'+esc(c.tel)+' · '+esc(c.whats||'')+'</div><div><b>E-mail</b>'+esc(c.email||'')+'</div><div><b>Endereço</b>'+esc(c.end||'')+'</div>':'')+'</div>':'')+
     '<div class="dados"><div><b>Data do pedido</b>'+dbr(p.data)+'</div><div><b>Entrega</b>'+dbr(p.entrega)+'</div><div><b>Competência</b>'+dbr(p.mes)+'</div><div><b>Pagamento</b>'+esc(p.cond||'—')+'</div></div>'+
@@ -885,7 +895,7 @@ function telaAprovar(){
 }
 function aprovar(id,b){
   var p=D.pedidos.filter(function(x){return x.id===id;})[0];
-  if(p && p.alerta && !confirm('ATENÇÃO: preço abaixo da tabela.\n\n'+p.alerta+'\n\nAprovar mesmo assim? (Para o representante corrigir, use Recusar.)')) return;
+  if(p && p.alerta && !confirm('ATENÇÃO: '+(/abaixo da tabela/.test(p.alerta)?'preço abaixo da tabela.':'confira este pedido.')+'\n\n'+p.alerta+'\n\nAprovar mesmo assim? (Para o representante corrigir, use Recusar.)')) return;
   ocupado(b,true,'Aprovando…');
   chamar('decidir',TOKEN,id,true,'',{mes:$('aj_mes_'+id).value,entrega:$('aj_ent_'+id).value}).then(function(r){
     posDecisao(id,r,'aprovado');
@@ -896,7 +906,7 @@ function recusar(id){
   var p=D.pedidos.filter(function(x){return x.id===id;})[0];
   abrirModal('<h2>Recusar pedido nº '+esc(p.numRep)+'</h2><p class="sub">'+esc(p.cliente)+' · '+rs(p.total)+' · '+esc(p.repNome)+'</p>'+
     '<label>Motivo (o representante vai ler) <span class="obr">*</span></label><div class="chips">'+MOTIVOS.map(function(m){return '<button type="button">'+esc(m)+'</button>';}).join('')+'</div>'+
-    '<textarea id="rMot" maxlength="500" placeholder="Explique o que ele precisa corrigir">'+(p.alerta?esc('Preço abaixo da tabela: '+p.alerta.replace(/^\d+ item\(ns\) abaixo da tabela: /,'')+'. Corrija o valor.'):'')+'</textarea>'+
+    '<textarea id="rMot" maxlength="500" placeholder="Explique o que ele precisa corrigir">'+(p.alerta&&/abaixo da tabela/.test(p.alerta)?esc('Preço abaixo da tabela: '+p.alerta.split(' | ')[0].replace(/^\d+ item\(ns\) abaixo da tabela: /,'')+'. Corrija o valor.'):'')+'</textarea>'+
     '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn verm" id="rOk">Recusar pedido</button></div>');
   cada(document.querySelectorAll('.chips button'),function(c){ c.onclick=function(){ var t=$('rMot'); t.value = (t.value?t.value.trim()+'. ':'') + c.textContent; t.focus(); }; });
   $('rOk').onclick=function(){
@@ -1008,7 +1018,6 @@ $('conteudo').addEventListener('change',function(e){ if(e.target && /^aj_|^pClie
 ONLINE = navigator.onLine!==false;
 TOKEN = ler('elloin_token');
 if (TOKEN) iniciar(); else mostrarLogin();
-
 </script>
 </body>
 </html>
