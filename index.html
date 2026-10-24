@@ -441,13 +441,13 @@ function cabecalho(){
 }
 function recarregar(){ return chamar('carregar',TOKEN).then(function(d){ aplicarDados(d); irPara(ABA_ATUAL,true); }); }
 
-function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','historico','resumo','precos','usuarios'] : ['novo','meus','resumo']; }
+function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','historico','resumo','parados','precos','usuarios'] : ['novo','meus','resumo']; }
 function montarAbas(){
   var nomes, n;
   if(D.eu.perfil==='gestor'){
     n=D.pedidos.filter(function(p){return p.sit==='Pendente';}).length;
     var nA=D.pedidos.filter(function(p){return p.sit==='Pendente' && p.alerta;}).length;
-    nomes={aprovar:'Para aprovar'+(n?'<span class="bolha'+(nA?' verm':'')+'">'+n+'</span>':''),historico:'Todos os pedidos',resumo:'Resumo de vendas',precos:'Tabela de preços',usuarios:'Representantes'};
+    nomes={aprovar:'Para aprovar'+(n?'<span class="bolha'+(nA?' verm':'')+'">'+n+'</span>':''),historico:'Todos os pedidos',resumo:'Resumo de vendas',parados:'Clientes parados',precos:'Tabela de preços',usuarios:'Representantes'};
   } else {
     n=D.pedidos.filter(function(p){return p.sit==='Recusado' && !p.reenviado;}).length + minhaFila().length;
     nomes={novo:'Novo pedido',meus:'Meus pedidos'+(n?'<span class="bolha">'+n+'</span>':''),resumo:'Meu resumo'};
@@ -459,7 +459,7 @@ function irPara(a, manterRolagem){
   if(abasValidas().indexOf(a)<0) a=abasValidas()[0];
   ABA_ATUAL=a; FORM_SUJO=false;
   cada($('abas').children,function(b){ b.className = b.getAttribute('data-a')===a?'ativo':''; });
-  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,precos:telaPrecos,usuarios:telaUsuarios})[a]();
+  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,parados:telaParados,precos:telaPrecos,usuarios:telaUsuarios})[a]();
   if(!manterRolagem) window.scrollTo(0,0);
 }
 
@@ -846,14 +846,49 @@ function desenharResumo(r){
       '<div><small>Aguardando aprovação</small><b>'+rs(o.pendente)+'</b><span>'+o.nPend+' pedido(s)</span></div>'+
       '<div><small>Recusados</small><b>'+o.recusados+'</b><span>'+(o.abaixo?o.abaixo+' aprovado(s) abaixo da tabela':'para corrigir')+'</span></div></div>'+
       tabelaResumo('Por cliente',['Cliente','Valor'],o.clientes.map(function(c){return [esc(c.cliente.replace(/^[^\/]*\//,'')),rs(c.valor)];}))+
-      tabelaResumo('Por modelo',['Modelo','Peças','Valor'],o.modelos.map(function(m){return [esc(m.modelo),nbr(m.qtd),rs(m.valor)];}));
+      tabelaResumo('Por modelo',['Modelo','Peças','Valor'],o.modelos.map(function(m){return [esc(m.modelo),nbr(m.qtd),rs(m.valor)];}))+
+      '<div id="rParados"></div>';
+    if(!r.guardado && !r.local) chamar('clientesParados',TOKEN).then(function(x){ var el=$('rParados'); if(!el) return;
+      var g=x.grupos[0];
+      el.innerHTML='<div class="card"><h3>Clientes sem comprar há '+x.dias+' dias ou mais</h3>'+(g&&g.clientes.length?
+        '<p class="dica">Vale a última compra registrada na empresa ou pelo app. Que tal retomar o contato?</p>'+tabelaParados(g.clientes):'<p class="dica">Nenhum. Todos os seus clientes compraram nos últimos '+x.dias+' dias. ✓</p>')+'</div>';
+    }).catch(function(){});
   } else {
+    var ind=r.ind||{};
     $('rCorpo').innerHTML=aviso_+
       '<div class="kpis"><div><small>Vendido em '+nomeMes+' (todos)</small><b>'+rs(r.total)+'</b><span>aprovados e lançados</span></div>'+
-      '<div><small>Aguardando aprovação</small><b>'+rs(r.reps.reduce(function(s,o){return s+o.pendente;},0))+'</b><span>'+r.reps.reduce(function(s,o){return s+o.nPend;},0)+' pedido(s)</span></div></div>'+
-      tabelaResumo('Por representante',['Representante','Vendido','Pedidos','Peças','Aguardando','Abaixo da tabela'],
-        r.reps.map(function(o){return [esc(o.nome),rs(o.vendido),o.pedidos,nbr(o.pecas),rs(o.pendente)+' ('+o.nPend+')',o.abaixo||'—'];}).concat(r.reps.length?[['<b>Total</b>','<b>'+rs(r.total)+'</b>','','','','']]:[]));
+      '<div><small>Aguardando aprovação</small><b>'+rs(r.reps.reduce(function(s,o){return s+o.pendente;},0))+'</b><span>'+r.reps.reduce(function(s,o){return s+o.nPend;},0)+' pedido(s)</span></div>'+
+      '<div><small>Tempo médio de aprovação</small><b>'+fmtHoras(ind.tempoAprovHoras)+'</b><span>do envio até a sua decisão</span></div>'+
+      '<div><small>Desconto sobre a tabela</small><b>'+rs(ind.desconto||0)+'</b><span>vendido abaixo do preço mínimo</span></div>'+
+      '<div><small>Prazo médio de recebimento</small><b>'+(ind.prazoMedioDias!=null?ind.prazoMedioDias+' dias':'—')+'</b><span>média das parcelas, pelo valor</span></div>'+
+      '<div><small>Taxa de recusa</small><b>'+(ind.taxaRecusa!=null?fmtPct(ind.taxaRecusa):'—')+'</b><span>'+(ind.recusas||0)+' recusa(s) no mês</span></div></div>'+
+      tabelaResumo('Por representante',['Representante','Vendido','Pedidos','Aguardando','Abaixo da tabela','Desconto','Tempo de aprovação','Recusa','Prazo médio'],
+        r.reps.map(function(o){ var i=o.ind||{}; return [esc(o.nome),rs(o.vendido),o.pedidos,rs(o.pendente)+' ('+o.nPend+')',o.abaixo||'—',i.desconto?rs(i.desconto):'—',fmtHoras(i.tempoAprovHoras),i.taxaRecusa!=null?fmtPct(i.taxaRecusa):'—',i.prazoMedioDias!=null?i.prazoMedioDias+' d':'—'];})
+        .concat(r.reps.length?[['<b>Total</b>','<b>'+rs(r.total)+'</b>','','','',ind.desconto?'<b>'+rs(ind.desconto)+'</b>':'',fmtHoras(ind.tempoAprovHoras),ind.taxaRecusa!=null?fmtPct(ind.taxaRecusa):'',ind.prazoMedioDias!=null?ind.prazoMedioDias+' d':'']]:[]));
   }
+}
+function fmtHoras(h){ if(h==null) return '—'; if(h<1) return Math.max(1,Math.round(h*60))+' min'; if(h<48) return String(Math.round(h*10)/10).replace('.',',')+' h'; return String(Math.round(h/24*10)/10).replace('.',',')+' dias'; }
+function fmtPct(v){ return String(v).replace('.',',')+'%'; }
+function tabelaParados(cl){
+  return '<table class="it"><tr><th>Cliente</th><th class="n">Última compra</th><th class="n">Dias</th></tr>'+cl.map(function(c){
+    return '<tr><td>'+esc(c.cliente.replace(/^[^\/]*\//,''))+'</td><td class="n">'+dbr(c.ultima)+'</td><td class="n"><b>'+c.dias+'</b></td></tr>'; }).join('')+'</table>';
+}
+/* ---------------------------------------------------------------- GESTOR: clientes parados */
+function telaParados(){
+  $('conteudo').innerHTML='<div class="card"><div class="linha"><h2 style="margin:0">Clientes sem comprar</h2><button class="btn claro" id="pqAtualizar">Atualizar</button></div>'+
+    '<p class="dica">Vale a última compra registrada na planilha de fechamento ou pelo app. A lista é atualizada a cada IMPORTAR DO APP e ENVIAR CADASTROS AO APP.</p></div><div id="pqCorpo"><div class="carregando">Calculando…</div></div>';
+  $('pqAtualizar').onclick=telaParados;
+  chamar('clientesParados',TOKEN).then(function(x){
+    var h='<div class="kpis"><div><small>Clientes parados</small><b>'+x.total+'</b><span>sem comprar há '+x.dias+' dias ou mais</span></div>'+
+      '<div><small>Representantes com clientes parados</small><b>'+x.grupos.length+'</b><span>avise cada um pelo WhatsApp</span></div></div>';
+    if(!x.grupos.length) h+='<div class="card vazio">Nenhum cliente parado. Todos compraram nos últimos '+x.dias+' dias. ✓</div>';
+    x.grupos.forEach(function(g){
+      h+='<div class="card"><div class="linha"><div><h3 style="margin:0">'+esc(g.nome)+'</h3><span class="dica">'+g.clientes.length+' cliente(s) parado(s)'+(g.temApp?'':' · sem acesso ao app')+'</span></div>'+
+        (g.whats?'<a class="btn whats" href="'+esc(g.whats)+'" target="_blank" rel="noopener">Avisar no WhatsApp</a>':'<span class="dica">'+(g.temApp?'Representante sem WhatsApp cadastrado.':'')+'</span>')+'</div>'+tabelaParados(g.clientes)+'</div>';
+    });
+    if(x.semHistorico) h+='<p class="dica">'+x.semHistorico+' cliente(s) sem nenhuma compra registrada não entram na lista.</p>';
+    $('pqCorpo').innerHTML=h;
+  }).catch(function(e){ $('pqCorpo').innerHTML='<div class="card vazio">'+(semSinal(e)?'Sem sinal: esta lista precisa de internet.':esc(e.message))+'</div>'; });
 }
 function tabelaResumo(titulo,cab,linhas){
   return '<div class="card"><h3>'+titulo+'</h3>'+(linhas.length?'<table class="it"><tr>'+cab.map(function(c,k){return '<th'+(k?' class="n"':'')+'>'+c+'</th>';}).join('')+'</tr>'+
