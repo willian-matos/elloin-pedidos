@@ -1,6 +1,6 @@
 /* Elloin Pedidos — guarda o app no aparelho para abrir sem internet.
    Ao publicar uma versão nova, troque o número da VERSAO para os aparelhos atualizarem. */
-var VERSAO = 'elloin-pedidos-7';
+var VERSAO = 'elloin-pedidos-8';
 var ARQUIVOS = ['./', './index.html', './config.js', './manifest.webmanifest', './icone-180.png', './icone-192.png', './icone-512.png', './logo.png', './logo-marca.png'];
 
 self.addEventListener('install', function (e) {
@@ -21,6 +21,7 @@ self.addEventListener('fetch', function (e) {
   var doApp = url.origin === self.location.origin;
   var pdfjs = url.hostname === 'cdn.jsdelivr.net' && url.pathname.indexOf('/pdfjs-dist@') >= 0;
   if (!doApp && !pdfjs) return;
+  if (doApp && /\/painel\.html$/.test(url.pathname)) return;     // painel da diretoria: sempre direto da internet (nunca guardado, nunca confundido com o app)
   var chave = req.mode === 'navigate' ? './index.html' : (doApp && /\/config\.js$/.test(url.pathname) ? './config.js' : null);
   if (doApp && chave) {
     // tela e config.js: tenta a versão nova (até 4 s); sem sinal ou demorando, abre a guardada
