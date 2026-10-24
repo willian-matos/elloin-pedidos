@@ -105,6 +105,9 @@
   .p-Lançado{background:var(--ok-bg);color:var(--ok)}
   .p-Recusado{background:var(--erro-bg);color:var(--erro)}
   .p-Cancelado{background:#EEF1F5;color:#6B7280}
+  .p-Aguardando_crédito{background:#E8F0FB;color:#1F4E8C}
+  .p-Crédito_negado{background:var(--erro-bg);color:var(--erro)}
+  .p-Crédito_liberado{background:var(--ok-bg);color:var(--ok)}
   .novo{background:var(--verm);color:#fff}
   table.it{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;font-variant-numeric:tabular-nums}
   table.it th{font-size:11.5px;color:var(--suave);text-align:left;font-weight:700;border-bottom:1px solid var(--linha2);padding:7px 6px;text-transform:uppercase;letter-spacing:.4px}
@@ -352,7 +355,7 @@ function sincronizar(){
           if(it.tipo==='pedido'){
             if(r.numeroMudou) msgs.push('O pedido '+it.dados.numProposto+' foi enviado com o nº '+r.numero+' (o '+it.dados.numProposto+' já tinha sido usado em outro aparelho).');
             if(!D.pedidos.some(function(p){ return p.id===r.id; })){        // aparece em Meus pedidos mesmo se a lista não recarregar
-              var ped=pedidoDaFila(it); ped.local=false; ped.id=r.id; ped.sit='Pendente'; ped.numRep=r.numero; ped.uid=it.uid; ped.mes=it.dados.data.slice(0,7); ped.alerta=r.alerta||''; ped.forma=it.dados.forma; ped.prazo=it.dados.prazo;
+              var ped=pedidoDaFila(it); ped.local=false; ped.id=r.id; ped.sit='Aguardando crédito'; ped.numRep=r.numero; ped.uid=it.uid; ped.mes=it.dados.data.slice(0,7); ped.alerta=r.alerta||''; ped.forma=it.dados.forma; ped.prazo=it.dados.prazo;
               D.pedidos.unshift(ped); guardar('elloin_dados',JSON.stringify(D));
             }
           }
@@ -437,21 +440,24 @@ function iniciar(){
   });
 }
 function cabecalho(){
-  $('quem').innerHTML=esc(D.eu.nome)+'<br><small>'+(D.eu.perfil==='gestor'?'Gestor de vendas':'Representante')+'</small>';
-  $('subMarca').textContent = D.eu.perfil==='gestor' ? 'Aprovação de pedidos' : 'Pedidos de representantes';
+  $('quem').innerHTML=esc(D.eu.nome)+'<br><small>'+(D.eu.perfil==='gestor'?'Gestor de vendas':D.eu.perfil==='credito'?'Análise de crédito':'Representante')+'</small>';
+  $('subMarca').textContent = D.eu.perfil==='gestor' ? 'Aprovação de pedidos' : D.eu.perfil==='credito' ? 'Análise de crédito' : 'Pedidos de representantes';
   dicaInstalar();
 }
 function recarregar(){ return chamar('carregar',TOKEN).then(function(d){ aplicarDados(d); irPara(ABA_ATUAL,true); }); }
 
-function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','historico','resumo','parados','precos','usuarios'] : ['novo','meus','resumo']; }
+function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','historico','resumo','parados','precos','usuarios'] : D.eu.perfil==='credito' ? ['credito'] : ['novo','meus','resumo']; }
 function montarAbas(){
   var nomes, n;
-  if(D.eu.perfil==='gestor'){
-    n=D.pedidos.filter(function(p){return p.sit==='Pendente';}).length;
+  if(D.eu.perfil==='credito'){
+    n=D.pedidos.filter(function(p){return p.sit==='Aguardando crédito';}).length;
+    nomes={credito:'Análise de crédito'+(n?'<span class="bolha">'+n+'</span>':'')};
+  } else if(D.eu.perfil==='gestor'){
+    n=D.pedidos.filter(function(p){return p.sit==='Pendente'||p.sit==='Crédito negado';}).length;
     var nA=D.pedidos.filter(function(p){return p.sit==='Pendente' && p.alerta;}).length;
     nomes={aprovar:'Para aprovar'+(n?'<span class="bolha'+(nA?' verm':'')+'">'+n+'</span>':''),historico:'Todos os pedidos',resumo:'Resumo de vendas',parados:'Clientes parados',precos:'Tabela de preços',usuarios:'Representantes'};
   } else {
-    n=D.pedidos.filter(function(p){return p.sit==='Recusado' && !p.reenviado;}).length + minhaFila().length;
+    n=D.pedidos.filter(function(p){return (p.sit==='Recusado' && !p.reenviado) || p.sit==='Crédito negado';}).length + minhaFila().length;
     nomes={novo:'Novo pedido',meus:'Meus pedidos'+(n?'<span class="bolha">'+n+'</span>':''),resumo:'Meu resumo'};
   }
   $('abas').innerHTML = abasValidas().map(function(a){ return '<button data-a="'+a+'" class="'+(a===ABA_ATUAL?'ativo':'')+'">'+nomes[a]+'</button>'; }).join('');
@@ -461,7 +467,7 @@ function irPara(a, manterRolagem){
   if(abasValidas().indexOf(a)<0) a=abasValidas()[0];
   ABA_ATUAL=a; FORM_SUJO=false;
   cada($('abas').children,function(b){ b.className = b.getAttribute('data-a')===a?'ativo':''; });
-  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,parados:telaParados,precos:telaPrecos,usuarios:telaUsuarios})[a]();
+  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,parados:telaParados,precos:telaPrecos,usuarios:telaUsuarios,credito:telaCredito})[a]();
   if(!manterRolagem) window.scrollTo(0,0);
 }
 
@@ -616,7 +622,7 @@ function enviarPedido(e){
     var tot=itens.reduce(function(s,it){ return s+Math.round(num(it.qtd)*num(it.preco)*100)/100; },0);
     if(!ficou){
       var fin=item.final||{}; var p=(D.pedidos||[]).filter(function(x){return x.uid===uid;})[0]||{};
-      abrirModal('<h2>Pedido enviado ✓</h2><p>Pedido nº <b>'+esc(p.numRep||fin.numero||d.numProposto||'')+'</b> · '+rs(tot)+'</p><p>Agora ele aguarda a aprovação do gestor. Você acompanha em <b>Meus pedidos</b> e recebe o retorno também pelo WhatsApp.</p>'+
+      abrirModal('<h2>Pedido enviado ✓</h2><p>Pedido nº <b>'+esc(p.numRep||fin.numero||d.numProposto||'')+'</b> · '+rs(tot)+'</p><p>Agora ele passa pela análise de crédito e depois pela aprovação do gestor. Você acompanha em <b>Meus pedidos</b> e recebe o retorno também pelo WhatsApp.</p>'+
         '<div class="acoes"><button class="btn claro" onclick="fecharModal();telaNovo()">Lançar outro</button><button class="btn prim" onclick="fecharModal();irPara(\'meus\')">Ver meus pedidos</button></div>');
     } else if(ficou.estado==='erro'){
       aviso('O pedido não foi aceito: '+ficou.erro, true); RASCUNHO=rascunhoDaFila(ficou); telaNovo();
@@ -736,7 +742,7 @@ function telaMeus(){
         (c.estado==='erro'?'<span><button class="btn ouro" onclick="corrigirCliente(\''+c.uid+'\')">Corrigir</button> <button class="btn claro" onclick="descartarFila(\''+c.uid+'\')">Descartar</button></span>':'')+'</div>'+
         (c.estado==='erro'&&minhaFila().some(function(x){return x.tipo==='pedido'&&x.dados.cliente===c.nomeLocal;})?'<div class="dica">Os pedidos deste cliente estão guardados e vão depois que o cadastro for corrigido.</div>':''); }).join('')+'</div>':'')+
     '<div class="filtros"><button class="btn claro" style="flex:0 0 auto" onclick="atualizarMeus(this)">Atualizar</button><select id="mF"><option value="">Todas as situações</option>'+
-    ['Aguardando sinal','Pendente','Aprovado','Lançado','Recusado','Cancelado'].map(function(s){return '<option'+(s===f?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div>'+
+    ['Aguardando sinal','Aguardando crédito','Crédito negado','Pendente','Aprovado','Lançado','Recusado','Cancelado'].map(function(s){return '<option'+(s===f?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div>'+
     (lista.length? lista.map(function(p){
       return '<div class="ped'+(p.local?' local':'')+'"><div class="cab"><div><div class="tit">'+esc(String(p.cliente).replace(/^[^\/]*\//,''))+(p.clienteNovo&&p.sit==='Pendente'?' <span class="pill novo">CLIENTE NOVO</span>':'')+'</div>'+
         '<div class="sub">Pedido nº '+esc(p.numRep)+(p.local?' · lançado '+dhbr(p.enviado)+' · guardado no aparelho':' · registro '+esc(p.id)+' · enviado '+dhbr(p.enviado))+'</div></div>'+pill(p.sit)+'</div>'+
@@ -744,6 +750,8 @@ function telaMeus(){
         blocoItens(p, true)+
         (p.sit==='Não aceito'?'<div class="motivo"><b>O servidor não aceitou:</b> '+esc(p.erro)+'</div>':'')+
         (p.sit==='Recusado'?'<div class="motivo"><b>Motivo da recusa:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+(p.reenviado?' · corrigido e reenviado no registro '+esc(p.reenviado):'')+'</small></div>':'')+
+        (p.sit==='Aguardando crédito'?'<div class="dica" style="margin-top:8px">Em análise de crédito. Depois vai para a aprovação do gestor.</div>':'')+
+        (p.sit==='Crédito negado'?'<div class="motivo"><b>Crédito não liberado:</b> '+esc(p.credMot)+'<br><small>'+esc(p.credPor)+' · '+dhbr(p.credEm)+' · o gestor de vendas foi avisado e só ele pode liberar a venda.</small></div>':'')+
         (p.sit==='Aprovado'?'<div class="dica" style="margin-top:8px">Aprovado por '+esc(p.decPor)+' em '+dhbr(p.decEm)+'.</div>':'')+
         (p.sit==='Lançado'&&p.ajuste?'<div class="dica" style="margin-top:8px"><b>Planilha de fechamento:</b> '+esc(String(p.ajuste).replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} — /,''))+'</div>':'')+
         (p.sit==='Cancelado'&&p.lancEm?'<div class="dica" style="margin-top:8px"><b>Planilha de fechamento:</b> cancelado na planilha da empresa; não conta mais nas vendas.</div>':'')+
@@ -751,7 +759,7 @@ function telaMeus(){
           (p.sit==='Não aceito'?'<button class="btn ouro" onclick="corrigirFila(\''+p.uid+'\')">Corrigir e enviar</button><button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Descartar</button>':'')+
           (p.sit==='Aguardando sinal'?'<button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Excluir do aparelho</button>':'')+
           (p.sit==='Recusado'&&!p.reenviado?'<button class="btn ouro" onclick="corrigir(\''+p.id+'\')">Corrigir e reenviar</button>':'')+
-          (p.sit==='Pendente'?'<button class="btn claro" onclick="cancelar(\''+p.id+'\',this)">Cancelar pedido</button>':'')+
+          (p.sit==='Pendente'||p.sit==='Aguardando crédito'||p.sit==='Crédito negado'?'<button class="btn claro" onclick="cancelar(\''+p.id+'\',this)">Cancelar pedido</button>':'')+
           (p.local?'':'<button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto</button>')+
         '</div></div>';
     }).join('') : '<div class="card vazio">Nenhum pedido aqui ainda.</div>');
@@ -830,7 +838,7 @@ function resumoLocal(mes){            // sem sinal: calcula com os pedidos guard
     if(p.mes!==mes) return;
     if(p.sit==='Aprovado'||p.sit==='Lançado'){ o.vendido+=p.total; o.pedidos++; if(/abaixo da tabela/.test(p.alerta||'')) o.abaixo++; o.clientes[p.cliente]=(o.clientes[p.cliente]||0)+p.total;
       p.itens.forEach(function(i){ if(i.cancelado) return; o.pecas+=i.qtd; var m=o.modelos[i.modelo]=o.modelos[i.modelo]||{qtd:0,valor:0}; m.qtd+=i.qtd; m.valor+=i.total; }); }
-    else if(p.sit==='Pendente'){ o.pendente+=p.total; o.nPend++; } else if(p.sit==='Recusado' && !p.reenviado) o.recusados++;
+    else if(p.sit==='Pendente'||p.sit==='Aguardando crédito'){ o.pendente+=p.total; o.nPend++; } else if(p.sit==='Recusado' && !p.reenviado) o.recusados++;
   });
   o.clientes=Object.keys(o.clientes).map(function(c){return {cliente:c,valor:o.clientes[c]};}).sort(function(a,b){return b.valor-a.valor;}).slice(0,10);
   o.modelos=Object.keys(o.modelos).map(function(m){return {modelo:m,qtd:o.modelos[m].qtd,valor:o.modelos[m].valor};}).sort(function(a,b){return b.valor-a.valor;});
@@ -872,10 +880,11 @@ function desenharResumo(r){
     $('rCorpo').innerHTML=aviso_+
       '<div class="kpis"><div><small>Vendido em '+nomeMes+' (todos)</small><b>'+rs(r.total)+'</b><span>aprovados e lançados</span></div>'+
       '<div><small>Aguardando aprovação</small><b>'+rs(r.reps.reduce(function(s,o){return s+o.pendente;},0))+'</b><span>'+r.reps.reduce(function(s,o){return s+o.nPend;},0)+' pedido(s)</span></div>'+
-      '<div><small>Tempo médio de aprovação</small><b>'+fmtHoras(ind.tempoAprovHoras)+'</b><span>do envio até a sua decisão</span></div>'+
+      '<div><small>Tempo médio de aprovação</small><b>'+fmtHoras(ind.tempoAprovHoras)+'</b><span>do envio até a sua decisão (inclui a análise de crédito)</span></div>'+
       '<div><small>Desconto sobre a tabela</small><b>'+rs(ind.desconto||0)+'</b><span>vendido abaixo do preço mínimo</span></div>'+
       '<div><small>Prazo médio de recebimento</small><b>'+(ind.prazoMedioDias!=null?ind.prazoMedioDias+' dias':'—')+'</b><span>média das parcelas, pelo valor</span></div>'+
-      '<div><small>Taxa de recusa</small><b>'+(ind.taxaRecusa!=null?fmtPct(ind.taxaRecusa):'—')+'</b><span>'+(ind.recusas||0)+' recusa(s) no mês</span></div></div>'+
+      '<div><small>Taxa de recusa</small><b>'+(ind.taxaRecusa!=null?fmtPct(ind.taxaRecusa):'—')+'</b><span>'+(ind.recusas||0)+' recusa(s) no mês</span></div>'+
+      '<div><small>Não liberados pelo crédito</small><b>'+r.reps.reduce(function(s,o){return s+(o.credNeg||0);},0)+'</b><span>esperando você liberar ou recusar</span></div></div>'+
       tabelaResumo('Por representante',['Representante','Vendido','Pedidos','Aguardando','Abaixo da tabela','Desconto','Tempo de aprovação','Recusa','Prazo médio'],
         r.reps.map(function(o){ var i=o.ind||{}; return [esc(o.nome),rs(o.vendido),o.pedidos,rs(o.pendente)+' ('+o.nPend+')',o.abaixo||'—',i.desconto?rs(i.desconto):'—',fmtHoras(i.tempoAprovHoras),i.taxaRecusa!=null?fmtPct(i.taxaRecusa):'—',i.prazoMedioDias!=null?i.prazoMedioDias+' d':'—'];})
         .concat(r.reps.length?[['<b>Total</b>','<b>'+rs(r.total)+'</b>','','','',ind.desconto?'<b>'+rs(ind.desconto)+'</b>':'',fmtHoras(ind.tempoAprovHoras),ind.taxaRecusa!=null?fmtPct(ind.taxaRecusa):'',ind.prazoMedioDias!=null?ind.prazoMedioDias+' d':'']]:[]));
@@ -919,6 +928,7 @@ function cartaoGestor(p,decidir){
       (c.tel?'<div><b>Telefone / WhatsApp</b>'+esc(c.tel)+' · '+esc(c.whats||'')+'</div><div><b>E-mail</b>'+esc(c.email||'')+'</div><div><b>Endereço</b>'+esc(c.end||'')+'</div>':'')+'</div>':'')+
     '<div class="dados"><div><b>Data do pedido</b>'+dbr(p.data)+'</div><div><b>Entrega</b>'+dbr(p.entrega)+'</div><div><b>Competência</b>'+dbr(p.mes)+'</div><div><b>Pagamento</b>'+esc(p.cond||'—')+'</div></div>'+
     (p.obs?'<div class="dica" style="margin-top:8px"><b>Obs.:</b> '+esc(p.obs)+'</div>':'')+
+    linhaCredito(p)+
     blocoItens(p, true)+
     (p.sit==='Recusado'?'<div class="motivo"><b>Motivo:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+'</small></div>':'')+
     (p.aviso?'<div class="aviso"><b>'+(p.sit==='Aprovado'?'A planilha não conseguiu lançar:':'Planilha de fechamento:')+'</b> '+esc(p.aviso)+'</div>':'')+
@@ -932,8 +942,15 @@ function cartaoGestor(p,decidir){
       (p.sit==='Aprovado'?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar (ainda não lançado)</button>':'')+
     '</div></div>';
 }
+function linhaCredito(p){
+  if(p.sit==='Aguardando crédito') return '<div class="dica" style="margin-top:8px"><b>Crédito:</b> aguardando a análise.</div>';
+  if(!p.credEm) return '';
+  if(p.credMot) return '<div class="motivo"><b>Crédito NÃO liberado</b> por '+esc(p.credPor)+' em '+dhbr(p.credEm)+': '+esc(p.credMot)+(p.credLib?'<br><b>Venda liberada pelo gestor:</b> '+esc(p.credLib):'')+'</div>';
+  return '<div class="dica" style="margin-top:8px"><b>Crédito:</b> liberado por '+esc(p.credPor)+' em '+dhbr(p.credEm)+'.</div>';
+}
 function telaAprovar(){
   var l=D.pedidos.filter(function(p){return p.sit==='Pendente';}).reverse();   // mais antigos primeiro
+  var neg=D.pedidos.filter(function(p){return p.sit==='Crédito negado';}).reverse(), emCred=D.pedidos.filter(function(p){return p.sit==='Aguardando crédito';}).length;
   var aprov=D.pedidos.filter(function(p){return p.sit==='Aprovado';});
   var comAviso=aprov.filter(function(p){return p.aviso;}).length, comAlerta=l.filter(function(p){return p.alerta;}).length;
   $('conteudo').innerHTML=
@@ -941,7 +958,74 @@ function telaAprovar(){
     '<div><b style="font-size:22px">'+aprov.length+'</b> aprovados aguardando a planilha'+(comAviso?' <span class="pill p-Pendente">'+comAviso+' com aviso</span>':'')+'</div>'+
     '<div class="esp" style="flex:1"></div><button class="btn claro" onclick="recarregar().then(function(){aviso(\'Atualizado.\')}).catch(function(e){aviso(e.message,true)})">Atualizar</button>'+
     '<div class="dica" style="flex-basis:100%">'+(D.planilha&&D.planilha.versao?'Planilha de fechamento em uso: <b>v'+esc(D.planilha.versao)+'</b> ('+esc(D.planilha.arquivo)+', última importação '+dhbr(D.planilha.em)+'). Versão mais antiga é recusada.':'Nenhuma importação feita ainda.')+'</div></div>'+
+    (emCred?'<p class="dica">'+emCred+' pedido(s) ainda em análise de crédito: aparecem aqui depois que o crédito liberar.</p>':'')+
+    (D.usuarios&&!D.usuarios.some(function(u){return String(u.perfil||'').toLowerCase().replace('crédito','credito')==='credito'&&u.ativo;})?'<div class="card motivo"><b>Atenção:</b> nenhuma pessoa do crédito ativa. Todo pedido novo passa pelo crédito: cadastre em <b>Representantes</b> (perfil "Crédito (só análise)").</div>':'')+
+    (neg.length?'<h3 style="margin:18px 0 8px">Não liberados pelo crédito ('+neg.length+')</h3><p class="dica">Só o gestor pode liberar a venda. Liberando, ela volta para a sua aprovação normal.</p>'+
+      neg.map(function(p){ return cartaoGestor(p,false).replace('<div class="acoes">','<div class="acoes"><button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar a venda</button><button class="btn verde" onclick="liberarVenda(\''+p.id+'\')">Liberar a venda</button>'); }).join(''):'')+
     (l.length? l.map(function(p){return cartaoGestor(p,true);}).join('') : '<div class="card vazio">Nenhum pedido esperando aprovação. ✓</div>');
+}
+function liberarVenda(id){
+  var p=D.pedidos.filter(function(x){return x.id===id;})[0];
+  abrirModal('<h2>Liberar a venda nº '+esc(p.numRep)+'</h2><p class="sub">'+esc(p.cliente)+' · '+rs(p.total)+' · '+esc(p.repNome)+'</p>'+
+    '<div class="motivo"><b>O crédito não liberou:</b> '+esc(p.credMot)+'</div>'+
+    '<label>Por que você está liberando? (fica registrado)</label><textarea id="lMot" maxlength="300" placeholder="ex.: cliente antigo, pagamento combinado à vista"></textarea>'+
+    '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn verde" id="lOk">Liberar a venda</button></div>');
+  $('lOk').onclick=function(){
+    var b=this; ocupado(b,true,'Liberando…');
+    chamar('liberarCredito',TOKEN,id,$('lMot').value).then(function(r){
+        abrirModal('<h2>Venda liberada ✓</h2><p>Ela está em <b>Para aprovar</b> (fluxo normal). Avise o representante que a venda foi liberada:</p>'+
+          '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Agora não</button>'+
+          (r&&r.whatsRep?'<a class="btn whats" href="'+esc(r.whatsRep)+'" target="_blank" rel="noopener" onclick="setTimeout(fecharModal,300)">Avisar '+esc(r.repNome||'o representante')+' no WhatsApp</a>':'<span class="dica">Representante sem WhatsApp cadastrado.</span>')+'</div>');
+        recarregar().catch(function(){}); })
+      .catch(function(e){ aviso(semSinal(e)?'Sem sinal: é preciso internet.':e.message,true); ocupado(b,false); if(/Só dá para liberar|mudou/.test(e.message)){ fecharModal(); recarregar().catch(function(){}); } });
+  };
+}
+/* ---------------------------------------------------------------- CRÉDITO: análise (vê só esta etapa) */
+var MOTIVOS_CRED=['Cliente com restrição no CPF/CNPJ','Limite de crédito excedido','Pendência financeira com a Elloin','Cadastro incompleto ou divergente','Prazo de pagamento acima do permitido'];
+function telaCredito(){
+  var f=ler('elloin_filtro_cred')||'aguardando';
+  var ag=D.pedidos.filter(function(p){return p.sit==='Aguardando crédito';}), feitos=D.pedidos.filter(function(p){return p.sit!=='Aguardando crédito';});
+  var lista=f==='aguardando'?ag:feitos;
+  $('conteudo').innerHTML='<div class="card linha" style="justify-content:flex-start"><div><b style="font-size:22px">'+ag.length+'</b> para analisar</div>'+
+    '<div class="esp" style="flex:1"></div><button class="btn claro" onclick="recarregar().then(function(){aviso(\'Atualizado.\')}).catch(function(e){aviso(e.message,true)})">Atualizar</button></div>'+
+    '<div class="filtros"><select id="cF"><option value="aguardando"'+(f==='aguardando'?' selected':'')+'>Aguardando análise</option><option value="feitos"'+(f==='feitos'?' selected':'')+'>Já analisados</option></select></div>'+
+    (lista.length?lista.map(cartaoCredito).join(''):'<div class="card vazio">'+(f==='aguardando'?'Nenhum pedido aguardando análise de crédito. ✓':'Nenhum pedido analisado ainda.')+'</div>');
+  $('cF').onchange=function(){ guardar('elloin_filtro_cred',this.value); telaCredito(); };
+}
+function cartaoCredito(p){
+  var c=p.cli||{}, ag=p.sit==='Aguardando crédito';
+  return '<div class="ped" id="cred'+p.id+'"><div class="cab"><div><div class="tit">'+esc(String(p.cliente).replace(/^[^\/]*\//,''))+(p.clienteNovo?' <span class="pill novo">CLIENTE NOVO</span>':'')+'</div>'+
+    '<div class="sub">'+esc(p.repNome)+' · pedido nº '+esc(p.numRep)+' · enviado '+dhbr(p.enviado)+'</div></div>'+pill(p.sit)+'</div>'+
+    '<div class="dados"><div><b>Razão social</b>'+esc(c.razao||'—')+'</div><div><b>CNPJ/CPF</b>'+esc(c.doc||'—')+'</div><div><b>Cidade</b>'+esc(c.cidade||'—')+'</div>'+
+      '<div><b>Telefone / WhatsApp</b>'+esc(c.tel||'—')+(c.whats?' · '+esc(c.whats):'')+'</div><div><b>E-mail</b>'+esc(c.email||'—')+'</div><div><b>Endereço</b>'+esc(c.end||'—')+'</div></div>'+
+    '<div class="dados"><div><b>Valor do pedido</b>'+rs(p.total)+'</div><div><b>Pagamento</b>'+esc(p.cond||'—')+'</div><div><b>Data do pedido</b>'+dbr(p.data)+'</div><div><b>Entrega</b>'+dbr(p.entrega)+'</div></div>'+
+    (p.obs?'<div class="dica" style="margin-top:8px"><b>Obs.:</b> '+esc(p.obs)+'</div>':'')+blocoItens(p,false)+
+    (!ag?(p.credMot?'<div class="motivo"><b>Não liberado</b> por '+esc(p.credPor)+' em '+dhbr(p.credEm)+': '+esc(p.credMot)+(p.credLib?'<br><b>O gestor liberou a venda:</b> '+esc(p.credLib):'')+'</div>':'<div class="dica" style="margin-top:8px">Liberado por '+esc(p.credPor)+' em '+dhbr(p.credEm)+'.</div>'):'')+
+    '<div class="acoes"><button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto do pedido</button>'+
+    (ag?'<button class="btn verm" onclick="negarCredito(\''+p.id+'\')">Não liberar</button><button class="btn verde" onclick="liberarCreditoCred(\''+p.id+'\',this)">Liberar crédito</button>':'')+'</div></div>';
+}
+function liberarCreditoCred(id,b){
+  ocupado(b,true,'Liberando…');
+  chamar('analisarCredito',TOKEN,id,true,'','Aguardando crédito').then(function(){ aviso('Crédito liberado. O pedido foi para a aprovação do gestor.'); return recarregar(); })
+    .catch(function(e){ aviso(semSinal(e)?'Sem sinal: é preciso internet.':e.message,true); ocupado(b,false); if(/não está mais/.test(e.message)) recarregar().catch(function(){}); });
+}
+function negarCredito(id){
+  var p=D.pedidos.filter(function(x){return x.id===id;})[0];
+  abrirModal('<h2>Não liberar o crédito</h2><p class="sub">'+esc(String(p.cliente).replace(/^[^\/]*\//,''))+' · '+rs(p.total)+' · '+esc(p.repNome)+'</p>'+
+    '<label>Motivo (o representante e o gestor vão ler) <span class="obr">*</span></label><div class="chips">'+MOTIVOS_CRED.map(function(m){return '<button type="button">'+esc(m)+'</button>';}).join('')+'</div>'+
+    '<textarea id="cMot" maxlength="500" placeholder="Explique o motivo"></textarea>'+
+    '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn verm" id="cOk">Não liberar</button></div>');
+  cada(document.querySelectorAll('.chips button'),function(c){ c.onclick=function(){ var t=$('cMot'), a=t.value.trim(); t.value=(a?a.replace(/[.\s]+$/,'')+'. ':'')+c.textContent; t.focus(); }; });
+  $('cOk').onclick=function(){
+    var b=this; ocupado(b,true,'Enviando…');
+    chamar('analisarCredito',TOKEN,id,false,$('cMot').value,'Aguardando crédito').then(function(r){
+      abrirModal('<h2>Crédito não liberado ✓</h2><p>O pedido parou aqui. Avise o representante e o gestor pelo WhatsApp:</p><div class="acoes" style="flex-wrap:wrap">'+
+        (r.whatsRep?'<a class="btn whats" href="'+esc(r.whatsRep)+'" target="_blank" rel="noopener">Avisar '+esc(r.repNome)+'</a>':'<span class="dica">Representante sem WhatsApp cadastrado.</span>')+
+        (r.gestores||[]).map(function(g){ return '<a class="btn whats" href="'+esc(g.whats)+'" target="_blank" rel="noopener">Avisar '+esc(g.nome)+'</a>'; }).join('')+
+        '<button class="btn claro" onclick="fecharModal()">Fechar</button></div>');
+      recarregar().catch(function(){});
+    }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: é preciso internet.':e.message,true); ocupado(b,false); if(/não está mais/.test(e.message)){ fecharModal(); recarregar().catch(function(){}); } });
+  };
 }
 function aprovar(id,b){
   var p=D.pedidos.filter(function(x){return x.id===id;})[0];
@@ -981,7 +1065,7 @@ function telaHistorico(){
   var reps={}; D.pedidos.forEach(function(p){ reps[p.login]=p.repNome; });
   var lista=D.pedidos.filter(function(p){ return (!f.sit||p.sit===f.sit)&&(!f.rep||p.login===f.rep)&&(!f.q||(p.cliente+' '+p.numRep+' '+p.id).toLowerCase().indexOf(f.q.toLowerCase())>=0); });
   var tot=lista.filter(function(p){return p.sit==='Aprovado'||p.sit==='Lançado';}).reduce(function(s,p){return s+p.total;},0);
-  $('conteudo').innerHTML='<div class="filtros"><select id="hS"><option value="">Todas as situações</option>'+['Pendente','Aprovado','Lançado','Recusado','Cancelado'].map(function(s){return '<option'+(s===f.sit?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+  $('conteudo').innerHTML='<div class="filtros"><select id="hS"><option value="">Todas as situações</option>'+['Aguardando crédito','Crédito negado','Pendente','Aprovado','Lançado','Recusado','Cancelado'].map(function(s){return '<option'+(s===f.sit?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
     '<select id="hR"><option value="">Todos os representantes</option>'+Object.keys(reps).map(function(k){return '<option value="'+esc(k)+'"'+(k===f.rep?' selected':'')+'>'+esc(reps[k])+'</option>';}).join('')+'</select>'+
     '<input id="hQ" placeholder="Buscar cliente ou nº" value="'+esc(f.q||'')+'"></div>'+
     '<p class="dica">'+lista.length+' pedidos · aprovados/lançados nesta lista: <b>'+rs(tot)+'</b></p>'+
@@ -1020,7 +1104,7 @@ function telaUsuarios(){
     '<table class="it"><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Na planilha</th><th>WhatsApp</th><th></th></tr>'+
     D.usuarios.map(function(u,k){ return '<tr style="'+(u.ativo?'':'opacity:.5')+'"><td>'+esc(u.nome)+'</td><td>'+esc(u.login)+'</td><td>'+esc(u.perfil)+'</td><td>'+esc(u.vendedor||'—')+'</td><td>'+esc(u.whats||'—')+'</td>'+
       '<td class="n"><button class="linkbtn" onclick="modalUsuario('+k+')">editar</button></td></tr>'; }).join('')+'</table>'+
-    '<p class="dica">O nome "na planilha" (coluna Representantes da Cad_Listas) liga o representante aos clientes dele (ex.: vinicius → clientes vinicius/…). Cada um só enxerga os próprios clientes, pedidos, resumo e tabela de preços.</p></div>';
+    '<p class="dica">O nome "na planilha" (coluna Representantes da Cad_Listas) liga o representante aos clientes dele (ex.: vinicius → clientes vinicius/…). Cada um só enxerga os próprios clientes, pedidos, resumo e tabela de preços. O perfil <b>Crédito</b> só vê a análise de crédito dos pedidos (senha com 8 caracteres, letras e números).</p></div>';
 }
 function modalUsuario(k){
   var u = k!=null ? D.usuarios[k] : {perfil:'rep',ativo:true};
@@ -1028,16 +1112,16 @@ function modalUsuario(k){
                                  : '<input id="uV" value="'+esc(u.vendedor||'')+'" placeholder="ex.: vinicius">';
   abrirModal('<h2>'+(k!=null?'Editar usuário':'Novo usuário')+'</h2><div class="grade">'+
     '<div><label>Login</label><input id="uL" value="'+esc(u.login||'')+'"'+(k!=null?' readonly':'')+' autocapitalize="none"></div>'+
-    '<div><label>Perfil</label><select id="uP"><option value="rep"'+(u.perfil==='rep'?' selected':'')+'>Representante</option><option value="gestor"'+(u.perfil==='gestor'?' selected':'')+'>Gestor</option></select></div>'+
+    '<div><label>Perfil</label><select id="uP"><option value="rep"'+(u.perfil==='rep'?' selected':'')+'>Representante</option><option value="gestor"'+(u.perfil==='gestor'?' selected':'')+'>Gestor</option><option value="credito"'+(u.perfil==='credito'?' selected':'')+'>Crédito (só análise)</option></select></div>'+
     '<div class="tudo"><label>Nome</label><input id="uN" value="'+esc(u.nome||'')+'"></div>'+
-    '<div><label>Representante na planilha (Cad_Listas)</label>'+vend+'</div>'+
+    '<div><label>Representante na planilha (só para representante)</label>'+vend+'</div>'+
     '<div><label>WhatsApp (com DDD)</label><input id="uW" inputmode="tel" value="'+esc(u.whats||'')+'"></div>'+
     '<div><label>'+(k!=null?'Nova senha (deixe vazio para manter)':'Senha')+'</label><input id="uS" type="text" autocomplete="new-password"></div>'+
     '<div><label>Acesso</label><select id="uA"><option value="1"'+(u.ativo?' selected':'')+'>Ativo</option><option value="0"'+(u.ativo?'':' selected')+'>Bloqueado</option></select></div>'+
     '</div><div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn prim" id="uOk">Salvar</button></div>');
   $('uOk').onclick=function(){
     var b=this; ocupado(b,true,'Salvando…');
-    chamar('salvarUsuario',TOKEN,{login:$('uL').value,perfil:$('uP').value,nome:$('uN').value,vendedor:$('uV').value,whats:$('uW').value,senha:$('uS').value,ativo:$('uA').value==='1',novo:k==null})
+    chamar('salvarUsuario',TOKEN,{login:$('uL').value,perfil:$('uP').value,nome:$('uN').value,vendedor:$('uP').value==='rep'?$('uV').value:'',whats:$('uW').value,senha:$('uS').value,ativo:$('uA').value==='1',novo:k==null})
       .then(function(r){ fecharModal(); aviso(r.msg); return recarregar(); }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: é preciso internet.':e.message,true); ocupado(b,false); });
   };
 }
