@@ -506,7 +506,7 @@ function telaNovo(){
         '<div class="dica" id="pCliInfo"></div></div>'+
       '<div class="tudo"><label>Nº do pedido</label><div class="numauto" id="pNum">'+esc(numMostrado)+'<small>'+(r.deId?'(mesmo nº do pedido recusado)':'(automático)')+'</small></div></div>'+
       '<div class="tudo"><label>Forma de pagamento <span class="obr">*</span></label><div class="seg" id="pForma">'+D.formas.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.forma===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
-      '<div class="tudo"><label>Prazo (dias) <span class="obr">*</span></label><div class="seg" id="pPrazo">'+D.prazos.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.prazo===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
+      '<div class="tudo"><label>Prazo <span class="obr">*</span></label><div class="seg" id="pPrazo">'+D.prazos.map(function(f){return '<button type="button" data-v="'+esc(f)+'"'+(r.prazo===f?' class="sel"':'')+'>'+esc(f)+'</button>';}).join('')+'</div></div>'+
       '<div><label>Data do pedido <span class="obr">*</span></label><input id="pData" type="date" min="'+isoDias('',-DIAS_PEDIDO_ANTIGO)+'" max="'+hojeLocal()+'" value="'+esc(r.data||hojeLocal())+'"></div>'+
       '<div><label>Data da entrega <span class="obr">*</span></label><input id="pEntrega" type="date" value="'+esc(r.entrega||'')+'"><div class="dica">Previsão combinada com o cliente</div></div>'+
     '</div>'+
@@ -514,7 +514,7 @@ function telaNovo(){
     '<button type="button" class="linkbtn" id="pMais">+ adicionar item</button>'+
     '<div class="total"><span>Total do pedido</span><span id="pTotal">R$ 0,00</span></div>'+
     '<div class="grade" style="margin-top:14px">'+
-      '<div class="tudo"><label>Observação</label><textarea id="pObs" maxlength="300">'+esc(r.obs||'')+'</textarea></div>'+
+      '<div class="tudo"><label>Observação <small>(sai no romaneio que vai para o cliente)</small></label><textarea id="pObs" maxlength="300">'+esc(r.obs||'')+'</textarea></div>'+
       '<div class="tudo"><label>PDF ou foto do pedido <span class="obr">*</span></label><input id="pAnexo" type="file" accept="application/pdf,image/*">'+
         '<div class="anexo-ok" id="pAnexoInfo">'+(r.anexo?'✓ '+esc(r.anexo.nome||'anexo')+' (já anexado)':'')+'</div><div class="dica">O mesmo arquivo que você mandaria no WhatsApp. Até 10 MB.</div></div>'+
     '</div>'+
@@ -729,7 +729,7 @@ function pedidoDaFila(it){
   var d=it.dados, tot=0;
   var itens=(d.itens||[]).map(function(i){ var q=num(i.qtd), p=num(i.preco), t=Math.round(q*p*100)/100; tot+=t; var tb=precoTabela(i.modelo); return {modelo:i.modelo,qtd:q,preco:p,total:t,tabela:tb,abaixo:!!(tb&&p<tb-0.004)}; });
   return { local:true, uid:it.uid, sit: it.estado==='erro'?'Não aceito':'Aguardando sinal', erro:it.erro, cliente:d.cliente, numRep:d.numProposto||'(correção)', enviado:it.quando,
-           data:d.data, entrega:d.entrega, cond:d.forma+' '+d.prazo+' dias', total:tot, itens:itens };
+           data:d.data, entrega:d.entrega, cond:d.forma+' '+d.prazo+(d.prazo==='À vista'?'':' dias'), total:tot, itens:itens };
 }
 function telaMeus(){
   var f=ler('elloin_filtro_rep')||'';
@@ -760,6 +760,7 @@ function telaMeus(){
           (p.sit==='Aguardando sinal'?'<button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Excluir do aparelho</button>':'')+
           (p.sit==='Recusado'&&!p.reenviado?'<button class="btn ouro" onclick="corrigir(\''+p.id+'\')">Corrigir e reenviar</button>':'')+
           (p.sit==='Pendente'||p.sit==='Aguardando crédito'||p.sit==='Crédito negado'?'<button class="btn claro" onclick="cancelar(\''+p.id+'\',this)">Cancelar pedido</button>':'')+
+          (p.sit==='Aprovado'||p.sit==='Lançado'?'<button class="btn prim" onclick="verRomaneio(\''+p.id+'\',this)">Romaneio (PDF)</button>':'')+
           (p.local?'':'<button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto</button>')+
         '</div></div>';
     }).join('') : '<div class="card vazio">Nenhum pedido aqui ainda.</div>');
@@ -939,6 +940,7 @@ function cartaoGestor(p,decidir){
       '<div><label>Data da entrega</label><input type="date" id="aj_ent_'+p.id+'" value="'+esc(p.entrega)+'" min="'+esc(p.data)+'"></div></div>':'')+
     '<div class="acoes"><button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto do pedido</button>'+
       (decidir?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar</button><button class="btn verde" onclick="aprovar(\''+p.id+'\',this)">Aprovar</button>':'')+
+      (p.sit==='Aprovado'||p.sit==='Lançado'?'<button class="btn prim" onclick="verRomaneio(\''+p.id+'\',this)">Romaneio (PDF)</button>':'')+
       (p.sit==='Aprovado'?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar (ainda não lançado)</button>':'')+
     '</div></div>';
 }
@@ -1053,10 +1055,32 @@ function recusar(id){
 }
 function posDecisao(id,r,palavra){
   abrirModal('<h2>Pedido '+palavra+' ✓</h2>'+
-    (palavra==='recusado'?'<p>O representante já vê o motivo no app. Avise também pelo WhatsApp:</p>':'<p>Ele entra na planilha de fechamento no próximo <b>IMPORTAR DO APP</b>. Quer avisar o representante?</p>')+
+    (palavra==='recusado'?'<p>O representante já vê o motivo no app. Avise também pelo WhatsApp:</p>':'<p>Ele entra na planilha de fechamento no próximo <b>IMPORTAR DO APP</b>.</p>'+
+      (r.romaneioSemLink?'<div class="aviso"><b>Romaneio gerado, mas o Google não deixou abrir o link para qualquer pessoa.</b> Ele está no botão "Romaneio (PDF)" do pedido: baixe e mande como arquivo.</div>':'')+
+      (r.romaneio?'<p>✓ <b>Romaneio gerado.</b> O link dele já vai na mensagem para o representante encaminhar ao cliente. <a href="'+esc(r.romaneio)+'" target="_blank" rel="noopener">Ver romaneio</a></p>':
+        (r.romaneioSemLink?'':'<p class="dica">O romaneio não foi gerado agora; o representante consegue gerar no app (botão "Romaneio").</p>'))+'<p>Avise o representante:</p>')+
     '<div class="acoes"><button class="btn claro" onclick="fecharModal()">'+(palavra==='recusado'?'Agora não':'Não precisa')+'</button>'+
     (r.whats?'<a class="btn whats" href="'+esc(r.whats)+'" target="_blank" rel="noopener" onclick="setTimeout(fecharModal,300)">Avisar no WhatsApp</a>':'<span class="dica">Representante sem WhatsApp cadastrado.</span>')+'</div>');
   recarregar().catch(function(){});
+}
+
+/* ---------------------------------------------------------------- ROMANEIO (PDF para o cliente) */
+function verRomaneio(id,b){
+  var p=D.pedidos.filter(function(x){return x.id===id;})[0]||{};
+  ocupado(b,true,'Gerando…');
+  chamar('linkRomaneio',TOKEN,id).then(function(r){
+    var gestor=D.eu.perfil==='gestor';
+    abrirModal('<h2>Romaneio do pedido nº '+esc(p.numRep||'')+'</h2><p class="sub">'+esc(String(p.cliente||'').replace(/^[^\/]*\//,''))+' · '+rs(p.total||0)+'</p>'+
+      (r.atualizado?'<div class="aviso"><b>Romaneio atualizado (versão '+r.versao+').</b> O pedido mudou depois da aprovação (ex.: item cancelado ou corrigido na planilha). Se o cliente recebeu a versão anterior, envie esta de novo: o link antigo não abre mais.</div>':
+        r.versao>1?'<p class="dica">Versão '+r.versao+' (a mais nova).</p>':'')+
+      (r.publico===false?'<div class="aviso"><b>O Google não deixou abrir este link para qualquer pessoa.</b> Abra o romaneio, baixe o PDF e mande como arquivo para o cliente.</div>':'')+
+      '<p>Todos os dados do pedido, com o logo da Elloin e os vencimentos (sábado, domingo e feriado passam para o próximo dia útil).</p>'+
+      '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Fechar</button>'+
+      '<a class="btn prim" href="'+esc(r.url)+'" target="_blank" rel="noopener">Abrir romaneio</a>'+
+      (gestor?(r.whatsRep?'<a class="btn whats" href="'+esc(r.whatsRep)+'" target="_blank" rel="noopener">Mandar ao representante</a>':'<span class="dica">Representante sem WhatsApp cadastrado.</span>')
+        :'<a class="btn whats" href="https://wa.me/?text='+encodeURIComponent(r.textoCliente)+'" target="_blank" rel="noopener">Enviar ao cliente no WhatsApp</a>')+
+      '</div>');
+  }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para gerar o romaneio é preciso internet.':e.message,true); }).then(function(){ ocupado(b,false); });
 }
 
 /* ---------------------------------------------------------------- GESTOR: histórico */
