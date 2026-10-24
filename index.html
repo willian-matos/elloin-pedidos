@@ -160,6 +160,7 @@
   .item.abaixo .tabinfo{color:var(--erro);font-weight:700}
   .item.abaixo .iPreco{border-color:var(--erro);background:#FFF7F6}
   table.it tr.abaixo td{color:var(--erro);font-weight:600}
+  table.it tr.cancel td{color:#8A94A6}
   .alerta{margin-top:12px;background:var(--erro-bg);color:#7A1A12;border-left:4px solid var(--erro);border-radius:10px;padding:11px 14px;font-size:14px}
   .ped.comalerta{border-color:#F3B7B0;box-shadow:0 0 0 3px #FDEDEB,var(--sombra)}
   .ped.local{border-style:dashed}
@@ -258,7 +259,8 @@ function chamar(fn){
 }
 function marcarOnline(v){ if(ONLINE!==v){ ONLINE=v; faixa(); } }
 function limparDadosLocais(){ guardar('elloin_dados',null); try{ if(ARMAZ){ for(var i=ARMAZ.length-1;i>=0;i--){ var k=ARMAZ.key(i); if(k && k.indexOf('elloin_resumo_')===0) ARMAZ.removeItem(k); } } }catch(e){} }
-function sessaoExpirou(){ TOKEN=null; D=null; guardar('elloin_token',null); limparDadosLocais(); mostrarLogin(); }
+function sessaoExpirou(){ var tinha=!!TOKEN; TOKEN=null; D=null; guardar('elloin_token',null); limparDadosLocais(); mostrarLogin();
+  if(tinha) aviso('Sua sessão expirou (senha trocada, acesso alterado ou muito tempo sem usar). Entre de novo.'+(FILA_MEM.length?' O que está guardado no aparelho continua guardado e vai depois que você entrar.':''), true); }
 
 /* ---------------------------------------------------------------- utilidades */
 function $(id){ return document.getElementById(id); }
@@ -275,7 +277,7 @@ function hojeLocal(){ var d=new Date(); return d.getFullYear()+'-'+dois(d.getMon
 function isoDias(base,dias){ var d=base?new Date(Number(base.slice(0,4)),Number(base.slice(5,7))-1,Number(base.slice(8,10))):new Date(); d.setDate(d.getDate()+dias); return d.getFullYear()+'-'+dois(d.getMonth()+1)+'-'+dois(d.getDate()); }
 function dataBr(iso){ return String(iso).slice(8,10)+'/'+String(iso).slice(5,7)+'/'+String(iso).slice(0,4); }
 /* limites contra erro de digitação (iguais aos do servidor) */
-var LIMITE_QTD=100000, LIMITE_PRECO=1000, ALERTA_QTD=20000, ALERTA_VEZES_TABELA=3, DIAS_PEDIDO_ANTIGO=90;
+var LIMITE_QTD=100000, LIMITE_PRECO=1000, ALERTA_QTD=20000, ALERTA_VEZES_TABELA=3, BLOQUEIO_VEZES_TABELA=10, DIAS_PEDIDO_ANTIGO=90;
 function agoraLocal(){ var d=new Date(); return hojeLocal()+' '+dois(d.getHours())+':'+dois(d.getMinutes()); }
 function normNome(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
 function novoUid(){ return 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
@@ -594,7 +596,8 @@ function enviarPedido(e){
   if(!falta) itens.forEach(function(it,k){ if(!falta && (!it.modelo || !(num(it.qtd)>0) || !(num(it.preco)>0))) falta='Item '+(k+1)+': confira modelo, quantidade e valor.'; });
   if(!falta) itens.forEach(function(it,k){
     if(!falta && num(it.qtd)>LIMITE_QTD) falta='Item '+(k+1)+' ('+it.modelo+'): quantidade muito alta (mais de 100.000 peças). Confira.';
-    if(!falta && num(it.preco)>LIMITE_PRECO) falta='Item '+(k+1)+' ('+it.modelo+'): valor da toalha muito alto (acima de R$ 1.000,00). Confira.'; });
+    if(!falta && num(it.preco)>LIMITE_PRECO) falta='Item '+(k+1)+' ('+it.modelo+'): valor da toalha muito alto (acima de R$ 1.000,00). Confira.';
+    var tb=precoTabela(it.modelo); if(!falta && tb && num(it.preco)>tb*BLOQUEIO_VEZES_TABELA) falta='Item '+(k+1)+' ('+it.modelo+'): valor '+rs(num(it.preco))+' é mais de 10 vezes a sua tabela ('+rs(tb)+'). Confira o valor (zero a mais?).'; });
   if(falta){ aviso(falta,true); return; }
   var estranhos=itens.filter(function(it){ var t=precoTabela(it.modelo); return num(it.qtd)>ALERTA_QTD || (t && num(it.preco)>t*ALERTA_VEZES_TABELA); });
   if(estranhos.length && !confirm('Confira, pode ser erro de digitação:\n'+estranhos.map(function(it){ return '• '+it.modelo+': '+it.qtd+' peças a '+it.preco; }).join('\n')+'\n\nEstá certo? (OK = enviar; Cancelar = corrigir)')) return;
@@ -711,7 +714,8 @@ function buscarCep(cep){
 function blocoItens(p, comTabela){
   var temTab = comTabela && p.itens.some(function(i){ return i.tabela; });
   return '<table class="it"><tr><th>Modelo</th><th class="n">Qtd</th><th class="n">Preço</th>'+(temTab?'<th class="n">Tabela</th>':'')+'<th class="n">Total</th></tr>'+
-    p.itens.map(function(i){ return '<tr'+(i.abaixo?' class="abaixo"':'')+'><td>'+esc(i.modelo)+(i.abaixo?' ⚠':'')+'</td><td class="n">'+nbr(i.qtd)+'</td><td class="n">'+rs(i.preco)+'</td>'+
+    p.itens.map(function(i){ if(i.cancelado) return '<tr class="cancel"><td><s>'+esc(i.modelo)+'</s> <small>(cancelado na planilha)</small></td><td class="n"><s>'+nbr(i.original?i.original.qtd:0)+'</s></td><td class="n"><s>'+rs(i.original?i.original.preco:i.preco)+'</s></td>'+(temTab?'<td class="n">—</td>':'')+'<td class="n">'+rs(0)+'</td></tr>';
+      return '<tr'+(i.abaixo?' class="abaixo"':'')+'><td>'+esc(i.modelo)+(i.abaixo?' ⚠':'')+(i.original?' <small>(corrigido na planilha)</small>':'')+'</td><td class="n">'+nbr(i.qtd)+'</td><td class="n">'+rs(i.preco)+'</td>'+
       (temTab?'<td class="n">'+(i.tabela?rs(i.tabela):'—')+'</td>':'')+'<td class="n">'+rs(i.total)+'</td></tr>'; }).join('')+
     '<tr><td colspan="'+(temTab?4:3)+'"><b>Total</b></td><td class="n"><b>'+rs(p.total)+'</b></td></tr></table>';
 }
@@ -741,6 +745,8 @@ function telaMeus(){
         (p.sit==='Não aceito'?'<div class="motivo"><b>O servidor não aceitou:</b> '+esc(p.erro)+'</div>':'')+
         (p.sit==='Recusado'?'<div class="motivo"><b>Motivo da recusa:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+(p.reenviado?' · corrigido e reenviado no registro '+esc(p.reenviado):'')+'</small></div>':'')+
         (p.sit==='Aprovado'?'<div class="dica" style="margin-top:8px">Aprovado por '+esc(p.decPor)+' em '+dhbr(p.decEm)+'.</div>':'')+
+        (p.sit==='Lançado'&&p.ajuste?'<div class="dica" style="margin-top:8px"><b>Planilha de fechamento:</b> '+esc(String(p.ajuste).replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} — /,''))+'</div>':'')+
+        (p.sit==='Cancelado'&&p.lancEm?'<div class="dica" style="margin-top:8px"><b>Planilha de fechamento:</b> cancelado na planilha da empresa; não conta mais nas vendas.</div>':'')+
         '<div class="acoes">'+
           (p.sit==='Não aceito'?'<button class="btn ouro" onclick="corrigirFila(\''+p.uid+'\')">Corrigir e enviar</button><button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Descartar</button>':'')+
           (p.sit==='Aguardando sinal'?'<button class="btn claro" onclick="descartarFila(\''+p.uid+'\')">Excluir do aparelho</button>':'')+
@@ -810,12 +816,20 @@ function opcoesMes(sel){
   if(sel && out.indexOf('value="'+sel+'"')<0) out='<option value="'+esc(sel)+'" selected>'+esc(dbr(sel))+'</option>'+out;
   return out;
 }
+/* competência na aprovação: só o mês do pedido, o anterior e os seguintes até hoje (evita lançar sem querer num mês já fechado) */
+function opcoesMesAprov(p){
+  var h=hojeLocal().slice(0,7), d=String(p.data||h).slice(0,7), a=Number(d.slice(0,4)), m=Number(d.slice(5,7))-1, out='';
+  if(m<1){m=12;a--;}
+  for(var k=0;k<15;k++){ var v=a+'-'+dois(m); if(v>h) break; out+='<option value="'+v+'"'+(v===p.mes?' selected':'')+'>'+NOMES_MES[m-1]+'/'+a+'</option>'; m++; if(m>12){m=1;a++;} }
+  if(out.indexOf('value="'+p.mes+'"')<0) out+='<option value="'+esc(p.mes)+'" selected>'+esc(dbr(p.mes))+'</option>';
+  return out;
+}
 function resumoLocal(mes){            // sem sinal: calcula com os pedidos guardados no aparelho
   var o={login:D.eu.login,nome:D.eu.nome,vendido:0,pedidos:0,pecas:0,pendente:0,nPend:0,recusados:0,abaixo:0,clientes:{},modelos:{}};
   D.pedidos.forEach(function(p){
     if(p.mes!==mes) return;
     if(p.sit==='Aprovado'||p.sit==='Lançado'){ o.vendido+=p.total; o.pedidos++; if(/abaixo da tabela/.test(p.alerta||'')) o.abaixo++; o.clientes[p.cliente]=(o.clientes[p.cliente]||0)+p.total;
-      p.itens.forEach(function(i){ o.pecas+=i.qtd; var m=o.modelos[i.modelo]=o.modelos[i.modelo]||{qtd:0,valor:0}; m.qtd+=i.qtd; m.valor+=i.total; }); }
+      p.itens.forEach(function(i){ if(i.cancelado) return; o.pecas+=i.qtd; var m=o.modelos[i.modelo]=o.modelos[i.modelo]||{qtd:0,valor:0}; m.qtd+=i.qtd; m.valor+=i.total; }); }
     else if(p.sit==='Pendente'){ o.pendente+=p.total; o.nPend++; } else if(p.sit==='Recusado' && !p.reenviado) o.recusados++;
   });
   o.clientes=Object.keys(o.clientes).map(function(c){return {cliente:c,valor:o.clientes[c]};}).sort(function(a,b){return b.valor-a.valor;}).slice(0,10);
@@ -876,7 +890,7 @@ function tabelaParados(cl){
 /* ---------------------------------------------------------------- GESTOR: clientes parados */
 function telaParados(){
   $('conteudo').innerHTML='<div class="card"><div class="linha"><h2 style="margin:0">Clientes sem comprar</h2><button class="btn claro" id="pqAtualizar">Atualizar</button></div>'+
-    '<p class="dica">Vale a última compra registrada na planilha de fechamento ou pelo app. A lista é atualizada a cada IMPORTAR DO APP e ENVIAR CADASTROS AO APP.</p></div><div id="pqCorpo"><div class="carregando">Calculando…</div></div>';
+    '<p class="dica">Vale a última compra registrada na planilha de fechamento ou pelo app. Com a planilha de fechamento aberta, a lista se atualiza sozinha a cada 10 minutos (e a cada IMPORTAR DO APP / ENVIAR CADASTROS AO APP).</p></div><div id="pqCorpo"><div class="carregando">Calculando…</div></div>';
   $('pqAtualizar').onclick=telaParados;
   chamar('clientesParados',TOKEN).then(function(x){
     var h='<div class="kpis"><div><small>Clientes parados</small><b>'+x.total+'</b><span>sem comprar há '+x.dias+' dias ou mais</span></div>'+
@@ -907,10 +921,11 @@ function cartaoGestor(p,decidir){
     (p.obs?'<div class="dica" style="margin-top:8px"><b>Obs.:</b> '+esc(p.obs)+'</div>':'')+
     blocoItens(p, true)+
     (p.sit==='Recusado'?'<div class="motivo"><b>Motivo:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+'</small></div>':'')+
-    (p.aviso?'<div class="aviso"><b>A planilha não conseguiu lançar:</b> '+esc(p.aviso)+'</div>':'')+
+    (p.aviso?'<div class="aviso"><b>'+(p.sit==='Aprovado'?'A planilha não conseguiu lançar:':'Planilha de fechamento:')+'</b> '+esc(p.aviso)+'</div>':'')+
+    (p.ajuste?'<div class="aviso"><b>Planilha de fechamento:</b> '+esc(p.ajuste)+'</div>':'')+
     (p.sit==='Lançado'?'<div class="dica" style="margin-top:8px">Lançado na planilha em '+dhbr(p.lancEm)+' ('+esc(p.lancNum)+').</div>':'')+
     (decidir?
-      '<div class="grade" style="margin-top:12px"><div><label>Mês (competência)</label><select id="aj_mes_'+p.id+'">'+opcoesMes(p.mes)+'</select></div>'+
+      '<div class="grade" style="margin-top:12px"><div><label>Mês (competência)</label><select id="aj_mes_'+p.id+'">'+opcoesMesAprov(p)+'</select></div>'+
       '<div><label>Data da entrega</label><input type="date" id="aj_ent_'+p.id+'" value="'+esc(p.entrega)+'" min="'+esc(p.data)+'"></div></div>':'')+
     '<div class="acoes"><button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto do pedido</button>'+
       (decidir?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar</button><button class="btn verde" onclick="aprovar(\''+p.id+'\',this)">Aprovar</button>':'')+
@@ -931,10 +946,12 @@ function telaAprovar(){
 function aprovar(id,b){
   var p=D.pedidos.filter(function(x){return x.id===id;})[0];
   if(p && p.alerta && !confirm('ATENÇÃO: '+(/abaixo da tabela/.test(p.alerta)?'preço abaixo da tabela.':'confira este pedido.')+'\n\n'+p.alerta+'\n\nAprovar mesmo assim? (Para o representante corrigir, use Recusar.)')) return;
+  var mesSel=$('aj_mes_'+id).value;
+  if(mesSel<hojeLocal().slice(0,7) && !confirm('Este pedido vai entrar na planilha em '+NOMES_MES[Number(mesSel.slice(5,7))-1]+'/'+mesSel.slice(0,4)+' (mês anterior ao atual).\n\nSe esse mês já foi fechado, os números dele vão mudar. Confirma?')) return;
   ocupado(b,true,'Aprovando…');
-  chamar('decidir',TOKEN,id,true,'',{mes:$('aj_mes_'+id).value,entrega:$('aj_ent_'+id).value}).then(function(r){
+  chamar('decidir',TOKEN,id,true,'',{mes:$('aj_mes_'+id).value,entrega:$('aj_ent_'+id).value},p?p.sit:'').then(function(r){
     posDecisao(id,r,'aprovado');
-  }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para aprovar é preciso internet.':e.message,true); ocupado(b,false); });
+  }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para aprovar é preciso internet.':e.message,true); ocupado(b,false); if(/mudou/.test(e.message)) recarregar().catch(function(){}); });
 }
 var MOTIVOS=['Preço abaixo da tabela','Prazo de pagamento não aceito','Cliente com pendência financeira','Dados diferentes do PDF','Modelo sem estoque / fora de linha','Falta CNPJ ou dados do cliente'];
 function recusar(id){
@@ -943,11 +960,11 @@ function recusar(id){
     '<label>Motivo (o representante vai ler) <span class="obr">*</span></label><div class="chips">'+MOTIVOS.map(function(m){return '<button type="button">'+esc(m)+'</button>';}).join('')+'</div>'+
     '<textarea id="rMot" maxlength="500" placeholder="Explique o que ele precisa corrigir">'+(p.alerta&&/abaixo da tabela/.test(p.alerta)?esc('Preço abaixo da tabela: '+p.alerta.split(' | ')[0].replace(/^\d+ item\(ns\) abaixo da tabela: /,'')+'. Corrija o valor.'):'')+'</textarea>'+
     '<div class="acoes"><button class="btn claro" onclick="fecharModal()">Voltar</button><button class="btn verm" id="rOk">Recusar pedido</button></div>');
-  cada(document.querySelectorAll('.chips button'),function(c){ c.onclick=function(){ var t=$('rMot'); t.value = (t.value?t.value.trim()+'. ':'') + c.textContent; t.focus(); }; });
+  cada(document.querySelectorAll('.chips button'),function(c){ c.onclick=function(){ var t=$('rMot'), a=t.value.trim(); t.value = (a?a.replace(/[.\s]+$/,'')+'. ':'') + c.textContent; t.focus(); }; });
   $('rOk').onclick=function(){
     var b=this; ocupado(b,true,'Recusando…');
-    chamar('decidir',TOKEN,id,false,$('rMot').value,{}).then(function(r){ posDecisao(id,r,'recusado'); })
-      .catch(function(e){ aviso(semSinal(e)?'Sem sinal: para recusar é preciso internet.':e.message,true); ocupado(b,false); });
+    chamar('decidir',TOKEN,id,false,$('rMot').value,{},p.sit).then(function(r){ posDecisao(id,r,'recusado'); })
+      .catch(function(e){ aviso(semSinal(e)?'Sem sinal: para recusar é preciso internet.':e.message,true); ocupado(b,false); if(/mudou/.test(e.message)){ fecharModal(); recarregar().catch(function(){}); } });
   };
 }
 function posDecisao(id,r,palavra){
@@ -1053,6 +1070,7 @@ $('conteudo').addEventListener('change',function(e){ if(e.target && /^aj_|^pClie
 ONLINE = navigator.onLine!==false;
 TOKEN = ler('elloin_token');
 if (TOKEN) iniciar(); else mostrarLogin();
+
 </script>
 </body>
 </html>
