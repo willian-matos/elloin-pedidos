@@ -172,6 +172,13 @@
   .p-Aguardando,.p-Aguardando_sinal{background:#FFF5DB;color:#93610A}
   .p-Não_aceito{background:var(--erro-bg);color:var(--erro)}
   .bolha.verm{background:var(--verm);color:#fff}
+  .bolha.azul{background:var(--azul);color:#fff}
+  .rolar{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .rolar table.it{min-width:640px}
+  .esperaCred{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--linha);border-left:4px solid var(--azul);border-radius:12px;background:#fff;margin-bottom:10px}
+  .esperaCred.atrasado{border-left-color:var(--erro);background:#FFF7F6}
+  .esperaCred .tempo{font-weight:800;color:var(--marinho);white-space:nowrap}
+  .esperaCred.atrasado .tempo{color:var(--erro)}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
   .kpis>div{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:14px 16px;box-shadow:var(--sombra);border-top:3px solid var(--azul)}
   .kpis>div:first-child{background:var(--marinho);border-color:var(--marinho);border-top-color:var(--verm)}
@@ -275,8 +282,8 @@ function milhar(s){ return s.replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
 function rs(v){ var n=Math.round(Number(v||0)*100)/100, neg=n<0, p=Math.abs(n).toFixed(2).split('.'); return (neg?'-':'')+'R$ '+milhar(p[0])+','+p[1]; }
 function nbr(v){ var n=Math.round(Number(v||0)*1000)/1000, p=String(Math.abs(n)).split('.'); return (n<0?'-':'')+milhar(p[0])+(p[1]?','+p[1]:''); }
 function cada(lista,fn){ Array.prototype.forEach.call(lista,fn); }
-function dbr(s){ if(!s) return ''; var p=String(s).split(' ')[0].split('-'); return p.length===3? p[2]+'/'+p[1]+'/'+p[0] : (p.length===2? p[1]+'/'+p[0] : s); }
-function dhbr(s){ if(!s) return ''; var t=String(s).split(' '); return dbr(t[0]) + (t[1]?' '+t[1]:''); }
+function dbr(s){ if(!s) return ''; var p=String(s).split(' ')[0].split('-'); return esc(p.length===3? p[2]+'/'+p[1]+'/'+p[0] : (p.length===2? p[1]+'/'+p[0] : s)); }
+function dhbr(s){ if(!s) return ''; var t=String(s).split(' '); return dbr(t[0]) + (t[1]?' '+esc(t[1]):''); }
 function num(v){ var s=String(v==null?'':v).trim().replace(/\s/g,''); if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,''); return s===''?NaN:Number(s); }
 function dois(n){ return (n<10?'0':'')+n; }
 function hojeLocal(){ var d=new Date(); return d.getFullYear()+'-'+dois(d.getMonth()+1)+'-'+dois(d.getDate()); }
@@ -396,6 +403,7 @@ function faixa(){
 
 /* ---------------------------------------------------------------- dados (guardados no aparelho para abrir sem sinal) */
 function aplicarDados(d){
+  if(d.agora && !d._agoraLocal) d._agoraLocal=agoraLocal();
   D=d; d._token=TOKEN; guardar('elloin_dados',JSON.stringify(d));
   var seqLoc=Number(ler('elloin_seq_'+d.eu.login)||0); if(d.seq>seqLoc) guardar('elloin_seq_'+d.eu.login,String(d.seq));
   montarAbas();
@@ -465,7 +473,7 @@ function cabecalho(){
 }
 function recarregar(){ return chamar('carregar',TOKEN).then(function(d){ aplicarDados(d); irPara(ABA_ATUAL,true); }); }
 
-function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','historico','resumo','parados','precos','usuarios'] : D.eu.perfil==='credito' ? ['credito'] : ['novo','meus','resumo']; }
+function abasValidas(){ return D.eu.perfil==='gestor' ? ['aprovar','cred','historico','resumo','parados','precos','usuarios'] : D.eu.perfil==='credito' ? ['credito'] : ['novo','meus','resumo']; }
 function montarAbas(){
   var nomes, n;
   if(D.eu.perfil==='credito'){
@@ -474,7 +482,8 @@ function montarAbas(){
   } else if(D.eu.perfil==='gestor'){
     n=D.pedidos.filter(function(p){return p.sit==='Pendente'||p.sit==='Crédito negado'||p.sit==='Aguardando peso'||p.avisarRep;}).length;
     var nA=D.pedidos.filter(function(p){return p.sit==='Pendente' && p.alerta;}).length;
-    nomes={aprovar:'Para aprovar'+(n?'<span class="bolha'+(nA?' verm':'')+'">'+n+'</span>':''),historico:'Todos os pedidos',resumo:'Resumo de vendas',parados:'Clientes parados',precos:'Tabela de preços',usuarios:'Representantes'};
+    var emCred=D.pedidos.filter(function(p){return p.sit==='Aguardando crédito';}), nAtr=emCred.filter(credAtrasado).length;
+    nomes={aprovar:'Para aprovar'+(n?'<span class="bolha'+(nA?' verm':'')+'">'+n+'</span>':''),cred:'Crédito'+(emCred.length?'<span class="bolha '+(nAtr?'verm':'azul')+'">'+emCred.length+'</span>':''),historico:'Todos os pedidos',resumo:'Resumo de vendas',parados:'Clientes parados',precos:'Tabela de preços',usuarios:'Representantes'};
   } else {
     n=D.pedidos.filter(function(p){return (p.sit==='Recusado' && !p.reenviado) || p.sit==='Crédito negado';}).length + minhaFila().length;
     nomes={novo:'Novo pedido',meus:'Meus pedidos'+(n?'<span class="bolha">'+n+'</span>':''),resumo:'Meu resumo'};
@@ -486,7 +495,7 @@ function irPara(a, manterRolagem){
   if(abasValidas().indexOf(a)<0) a=abasValidas()[0];
   ABA_ATUAL=a; FORM_SUJO=false;
   cada($('abas').children,function(b){ b.className = b.getAttribute('data-a')===a?'ativo':''; });
-  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,parados:telaParados,precos:telaPrecos,usuarios:telaUsuarios,credito:telaCredito})[a]();
+  ({novo:telaNovo,meus:telaMeus,resumo:telaResumo,aprovar:telaAprovar,historico:telaHistorico,parados:telaParados,precos:telaPrecos,usuarios:telaUsuarios,credito:telaCredito,cred:telaCredGestor})[a]();
   if(!manterRolagem) window.scrollTo(0,0);
 }
 
@@ -939,6 +948,71 @@ function tabelaResumo(titulo,cab,linhas){
     linhas.map(function(l){return '<tr>'+l.map(function(c,k){return '<td'+(k?' class="n"':'')+'>'+c+'</td>';}).join('')+'</tr>';}).join('')+'</table>':'<p class="dica">Nada neste mês.</p>')+'</div>';
 }
 
+/* ---------------------------------------------------------------- GESTOR: acompanhar o crédito */
+var HORAS_ATRASO_CRED=24;
+function horasDesde(a,b){ var d=function(s){ s=String(s||''); return Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10),+(s.slice(11,13)||0),+(s.slice(14,16)||0)); }; return (d(b)-d(a))/36e5; }
+function agoraServidor(){ var a=agoraLocal(); return D&&D.agora&&D._agoraLocal ? {h:horasDesde(D._agoraLocal,D.agora), a:a} : {h:0, a:a}; }
+function credAtrasado(p){ var s=agoraServidor(); return !!p.enviado && horasDesde(p.enviado, s.a)+s.h>=HORAS_ATRASO_CRED; }
+setInterval(function(){ try{ if(D&&D.eu&&D.eu.perfil==='gestor'&&$('abas').children.length) montarAbas(); }catch(e){} }, 300000);
+function telaCredGestor(){
+  var guardadoEm=ler('elloin_cred_em')||'', de=ler('elloin_cred_de'), ate=ler('elloin_cred_ate');
+  if(!de||!ate||guardadoEm.slice(0,7)!==hojeLocal().slice(0,7)){ de=hojeLocal().slice(0,8)+'01'; ate=hojeLocal(); }
+  $('conteudo').innerHTML='<div class="card"><h2 style="margin:0 0 4px">Acompanhamento do crédito</h2>'+
+    '<p class="dica">Pedidos esperando a análise de crédito (em vermelho: mais de '+HORAS_ATRASO_CRED+' horas) e as decisões do período.</p>'+
+    '<div class="filtros" style="margin:10px 0 0"><div><label>De</label><input type="date" id="cDe" value="'+esc(de)+'"></div><div><label>Até</label><input type="date" id="cAte" value="'+esc(ate)+'"></div></div></div>'+
+    '<div id="cCorpo"><div class="carregando">Carregando…</div></div>';
+  var mudou=function(){ var a=$('cDe').value, b=$('cAte').value; if(!a||!b) return; guardar('elloin_cred_de',a); guardar('elloin_cred_ate',b); guardar('elloin_cred_em',hojeLocal()); carregarCredGestor(); };
+  $('cDe').onchange=mudou; $('cAte').onchange=mudou;
+  carregarCredGestor();
+}
+var CRED_REQ=0;
+function carregarCredGestor(){
+  var de=$('cDe').value, ate=$('cAte').value, n=++CRED_REQ;
+  chamar('acompanharCredito',TOKEN,de,ate).then(function(x){ if(n!==CRED_REQ) return; if($('cDe')){ $('cDe').value=x.de; $('cAte').value=x.ate; } desenharCredGestor(x); })
+    .catch(function(e){ if(n!==CRED_REQ) return; var el=$('cCorpo'); if(el) el.innerHTML='<div class="card vazio">'+(semSinal(e)?'Sem sinal: o acompanhamento do crédito precisa de internet.':esc(e.message))+'</div>'; });
+}
+function desenharCredGestor(x){
+  var el=$('cCorpo'); if(!el) return;
+  var ag=x.aguardando, atr=ag.filter(function(p){return p.atrasado;}), dec=x.decisoes;
+  var soma=function(l,f){ return l.reduce(function(s,p){ return s+f(p); },0); };
+  var pp=x.porPessoa, nLib=soma(pp,function(o){return o.nLib;}), nNeg=soma(pp,function(o){return o.nNeg;}), vLib=soma(pp,function(o){return o.vLib;}), vNeg=soma(pp,function(o){return o.vNeg;});
+  var nDec=nLib+nNeg, tMed=nDec?soma(pp,function(o){return (o.tempoMedio||0)*(o.nLib+o.nNeg);})/nDec:null, gLib=soma(pp,function(o){return o.gestorLiberou;});
+  var periodo=dbr(x.de)+' a '+dbr(x.ate);
+  var k='<div class="kpis"><div><small>Esperando o crédito agora</small><b>'+ag.length+'</b><span>'+rs(soma(ag,function(p){return p.total;}))+'</span></div>'+
+    '<div'+(atr.length?' style="border-top-color:var(--erro)"':'')+'><small>Atrasados (mais de '+x.horasAtraso+' h)</small><b'+(atr.length?' style="color:var(--erro)"':'')+'>'+atr.length+'</b><span>'+(atr.length?'cobre pelo WhatsApp':'nenhum atrasado ✓')+'</span></div>'+
+    '<div><small>Liberados no período</small><b>'+nLib+'</b><span>'+rs(vLib)+'</span></div>'+
+    '<div><small>Não liberados no período</small><b>'+nNeg+'</b><span>'+rs(vNeg)+(nDec?' · '+fmtPct(Math.round(nNeg/nDec*1000)/10)+' dos analisados':'')+'</span></div>'+
+    '<div><small>Tempo médio de resposta</small><b>'+fmtHoras(tMed)+'</b><span>do envio até a decisão do crédito</span></div>'+
+    '<div><small>Negados que você liberou</small><b>'+gLib+'</b><span>no período</span></div></div>';
+  var h='';
+  if(!x.equipe.length) h+='<div class="card motivo"><b>Atenção:</b> nenhuma pessoa do crédito ativa. Cadastre em <b>Representantes</b> (perfil "Crédito (só análise)").</div>';
+  else if(!x.equipe.some(function(c){return c.temWhats;})) h+='<div class="card aviso"><b>Para cobrar pelo WhatsApp:</b> cadastre o WhatsApp da pessoa do crédito em <b>Representantes</b>.</div>';
+  // esperando
+  h+='<div class="card"><div class="linha"><h3 style="margin:0">Esperando a análise de crédito ('+ag.length+')</h3>'+
+    x.cobrarTodos.map(function(c){ return '<a class="btn whats" href="'+esc(c.link)+'" target="_blank" rel="noopener">Cobrar todos'+(x.cobrarTodos.length>1?' – '+esc(c.nome):'')+' no WhatsApp</a>'; }).join('')+'</div>';
+  if(!ag.length) h+='<p class="dica">Nenhum pedido esperando o crédito. ✓</p>';
+  else h+='<p class="dica">Os que esperam há mais tempo aparecem primeiro.</p>'+ag.map(function(p){
+    return '<div class="esperaCred'+(p.atrasado?' atrasado':'')+'"><div><div><b>nº '+esc(p.numRep)+'</b> · '+esc(p.cliente)+(p.clienteNovo?' <span class="pill novo">CLIENTE NOVO</span>':'')+'</div>'+
+      '<div class="dica">'+esc(p.repNome)+' · '+rs(p.total)+' · enviado '+dhbr(p.enviado)+'</div></div>'+
+      '<div class="tempo">'+(p.atrasado?'⚠ ':'')+'há '+fmtHoras(p.horas)+'</div>'+
+      p.cobrar.map(function(c){ return '<a class="btn whats" href="'+esc(c.link)+'" target="_blank" rel="noopener">Cobrar'+(p.cobrar.length>1?' '+esc(c.nome.split(' ')[0]):'')+'</a>'; }).join('')+'</div>';
+  }).join('');
+  h+='</div>'+k;
+  // por pessoa
+  h+=tabelaResumo('Por pessoa do crédito ('+periodo+')',['Pessoa','Liberados','Não liberados','R$ liberado','R$ não liberado','Tempo médio','Negados que você liberou'],
+    pp.map(function(o){ return [esc(o.nome),o.nLib,o.nNeg,rs(o.vLib),rs(o.vNeg),fmtHoras(o.tempoMedio),o.gestorLiberou||'—']; })).replace('Nada neste mês.','Nenhuma decisão do crédito no período.')
+    .replace('<table class="it">','<div class="rolar"><table class="it">').replace('</table>','</table></div>');
+  // decisões
+  h+='<div class="card"><h3>Decisões do crédito ('+periodo+')'+(x.totalDecisoes>dec.length?' – mostrando as '+dec.length+' mais recentes de '+x.totalDecisoes:'')+'</h3>'+(dec.length?
+    '<div class="rolar"><table class="it"><tr><th>Decisão</th><th>Pedido</th><th>Representante</th><th class="n">Valor</th><th>Resultado</th><th>Por</th><th class="n">Levou</th></tr>'+
+    dec.map(function(d){
+      return '<tr><td>'+dhbr(d.credEm)+'</td><td>nº '+esc(d.numRep)+' · '+esc(d.cliente)+'</td><td>'+esc(d.repNome)+'</td><td class="n">'+rs(d.total)+'</td>'+
+        '<td>'+pill(d.liberado?'Crédito liberado':'Crédito negado')+'</td><td>'+esc(d.credPor)+'</td><td class="n">'+fmtHoras(d.horas)+'</td></tr>'+
+        (d.liberado?'':'<tr class="cancel"><td></td><td colspan="6"><b>Motivo:</b> '+esc(d.credMot)+(d.credLib?'<br><b>Venda liberada pelo gestor:</b> '+esc(d.credLib):'')+'</td></tr>');
+    }).join('')+'</table></div>':'<p class="dica">Nenhuma decisão do crédito no período.</p>')+'</div>';
+  el.innerHTML=h;
+}
+
 /* ---------------------------------------------------------------- GESTOR: aprovar */
 function cartaoGestor(p,decidir){
   var c=p.cli||{};
@@ -983,7 +1057,7 @@ function telaAprovar(){
     '<div><b style="font-size:22px">'+aprov.length+'</b> aprovados aguardando a planilha'+(comAviso?' <span class="pill p-Pendente">'+comAviso+' com aviso</span>':'')+'</div>'+
     '<div class="esp" style="flex:1"></div><button class="btn claro" onclick="recarregar().then(function(){aviso(\'Atualizado.\')}).catch(function(e){aviso(e.message,true)})">Atualizar</button>'+
     '<div class="dica" style="flex-basis:100%">'+(D.planilha&&D.planilha.versao?'Planilha de fechamento em uso: <b>v'+esc(D.planilha.versao)+'</b> ('+esc(D.planilha.arquivo)+', última importação '+dhbr(D.planilha.em)+'). Versão mais antiga é recusada.':'Nenhuma importação feita ainda.')+'</div></div>'+
-    (emCred?'<p class="dica">'+emCred+' pedido(s) ainda em análise de crédito: aparecem aqui depois que o crédito liberar.</p>':'')+
+    (emCred?'<p class="dica">'+emCred+' pedido(s) ainda em análise de crédito: aparecem aqui depois que o crédito liberar. Acompanhe e cobre na aba <b>Crédito</b>.</p>':'')+
     (D.usuarios&&!D.usuarios.some(function(u){return String(u.perfil||'').toLowerCase().replace('crédito','credito')==='credito'&&u.ativo;})?'<div class="card motivo"><b>Atenção:</b> nenhuma pessoa do crédito ativa. Todo pedido novo passa pelo crédito: cadastre em <b>Representantes</b> (perfil "Crédito (só análise)").</div>':'')+
     (lib.length?'<h3 style="margin:18px 0 8px">Liberados com o peso: avisar o representante ('+lib.length+')</h3><p class="dica">O peso foi cadastrado (na planilha ou em outro pedido) e estes pedidos foram liberados. Clique <b>Avisar o representante</b>: sai o romaneio e a mensagem de WhatsApp.</p>'+
       lib.map(function(p){ return cartaoGestor(p,false); }).join(''):'')+
