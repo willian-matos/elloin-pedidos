@@ -791,7 +791,7 @@ function telaMeus(){
         (p.sit==='Não aceito'?'<div class="motivo"><b>O servidor não aceitou:</b> '+esc(p.erro)+'</div>':'')+
         (p.sit==='Recusado'?'<div class="motivo"><b>Motivo da recusa:</b> '+esc(p.motivo)+'<br><small>'+esc(p.decPor)+' · '+dhbr(p.decEm)+(p.reenviado?' · corrigido e reenviado no registro '+esc(p.reenviado):'')+'</small></div>':'')+
         (p.sit==='Aguardando crédito'?'<div class="dica" style="margin-top:8px">Em análise de crédito. Depois vai para a aprovação do gestor.</div>':'')+
-        (p.sit==='Aguardando peso'?'<div class="dica" style="margin-top:8px">Aprovado pelo gestor. Falta cadastrar o peso por peça de algum modelo; depois disso sai o romaneio.</div>':'')+
+        (p.sit==='Aguardando peso'?'<div class="dica" style="margin-top:8px">'+(p.decEm?'Aprovado pelo gestor. Falta cadastrar o peso por peça de algum modelo; depois disso sai o romaneio.':'Falta cadastrar o peso por peça de algum modelo (a Elloin já foi avisada). Depois disso vai para a aprovação do gestor.')+'</div>':'')+
         (p.sit==='Crédito negado'?'<div class="motivo"><b>Crédito não liberado:</b> '+esc(p.credMot)+'<br><small>'+esc(p.credPor)+' · '+dhbr(p.credEm)+' · o gestor de vendas foi avisado e só ele pode liberar a venda.</small></div>':'')+
         (p.sit==='Aprovado'?'<div class="dica" style="margin-top:8px">Aprovado por '+esc(p.decPor)+' em '+dhbr(p.decEm)+'.</div>':'')+
         (p.sit==='Lançado'&&p.ajuste?'<div class="dica" style="margin-top:8px"><b>Planilha de fechamento:</b> '+esc(String(p.ajuste).replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} — /,''))+'</div>':'')+
@@ -1041,13 +1041,14 @@ function cartaoGestor(p,decidir){
     (p.aviso?'<div class="aviso"><b>'+(p.sit==='Aprovado'?'A planilha não conseguiu lançar:':'Planilha de fechamento:')+'</b> '+esc(p.aviso)+'</div>':'')+
     (p.ajuste?'<div class="aviso"><b>Planilha de fechamento:</b> '+esc(p.ajuste)+'</div>':'')+
     (p.sit==='Lançado'?'<div class="dica" style="margin-top:8px">Lançado na planilha em '+dhbr(p.lancEm)+' ('+esc(p.lancNum)+').</div>':'')+
-    (p.sit==='Aguardando peso'?'<div class="aviso"><b>Aprovado, aguardando o peso por peça:</b> '+esc((p.faltaPeso||[]).join(', '))+'. O pedido só segue (romaneio, WhatsApp e planilha) depois que o peso for cadastrado.</div>':'')+
+    (p.sit==='Aguardando peso'?(p.decEm?'<div class="aviso"><b>Aprovado, aguardando o peso por peça:</b> '+esc((p.faltaPeso||[]).join(', '))+'. O pedido só segue (romaneio, WhatsApp e planilha) depois que o Diretor cadastrar o peso na planilha.</div>'
+      :'<div class="aviso"><b>Aguardando o peso por peça:</b> '+esc((p.faltaPeso||[]).join(', '))+'. O Diretor cadastra na planilha (já foi avisado por e-mail); assim que ele salvar, o pedido fica liberado para você aprovar.</div>'):'')+
     (decidir?
       '<div class="grade" style="margin-top:12px"><div><label>Mês (competência)</label><select id="aj_mes_'+p.id+'">'+opcoesMesAprov(p)+'</select></div>'+
       '<div><label>Data da entrega</label><input type="date" id="aj_ent_'+p.id+'" value="'+esc(p.entrega)+'" min="'+esc(p.data)+'"></div></div>':'')+
     '<div class="acoes"><button class="btn claro" onclick="verAnexo(\''+p.id+'\',this)">Ver PDF/foto do pedido</button>'+
       (decidir?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar</button><button class="btn verde" onclick="aprovar(\''+p.id+'\',this)">Aprovar</button>':'')+
-      (p.sit==='Aguardando peso'?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar</button><button class="btn verde" onclick="abrirPeso(\''+p.id+'\')">Informar peso</button>':'')+
+      (p.sit==='Aguardando peso'?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar</button>'+(linkCobrarDiretor(p)?'<a class="btn whats" href="'+esc(linkCobrarDiretor(p))+'" target="_blank" rel="noopener">Cobrar o Diretor no WhatsApp</a>':'<span class="dica">Sem WhatsApp do Diretor cadastrado (menu Sistema Elloin na planilha do Google).</span>'):'')+
       (p.avisarRep?'<button class="btn whats" onclick="avisarLiberado(\''+p.id+'\',this)">Avisar o representante</button>':'')+
       (p.sit==='Aprovado'||p.sit==='Lançado'?'<button class="btn prim" onclick="verRomaneio(\''+p.id+'\',this)">Romaneio (PDF)</button>':'')+
       (p.sit==='Aprovado'?'<button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar (ainda não lançado)</button>':'')+
@@ -1058,6 +1059,13 @@ function linhaCredito(p){
   if(!p.credEm) return p.prazo==='À vista' ? '<div class="dica" style="margin-top:8px"><b>Crédito:</b> não precisa (venda à vista).</div>' : '';
   if(p.credMot) return '<div class="motivo"><b>Crédito NÃO liberado</b> por '+esc(p.credPor)+' em '+dhbr(p.credEm)+': '+esc(p.credMot)+(p.credLib?'<br><b>Venda liberada pelo gestor:</b> '+esc(p.credLib):'')+'</div>';
   return '<div class="dica" style="margin-top:8px"><b>Crédito:</b> liberado por '+esc(p.credPor)+' em '+dhbr(p.credEm)+'.</div>';
+}
+function linkCobrarDiretor(p){
+  var n=String(D.diretorWhats||'').replace(/\D/g,''); if(!n) return '';
+  if(n.length<=11) n='55'+n;
+  var t='Olá! O pedido nº '+p.numRep+' de '+p.repNome+' ('+String(p.cliente).replace(/^[^\/]*\//,'')+', '+rs(p.total)+') está parado: falta o peso por peça de '+(p.faltaPeso||[]).join(', ')+
+    '. Pode cadastrar na planilha (CADASTROS > PRODUTO > SALVAR PESO)? Assim que salvar, o pedido é liberado para a aprovação. '+(D.eu.nome||'Gestor de Vendas')+'.';
+  return 'https://wa.me/'+n+'?text='+encodeURIComponent(t);
 }
 function telaAprovar(){
   var l=D.pedidos.filter(function(p){return p.sit==='Pendente';}).reverse();   // mais antigos primeiro
@@ -1073,7 +1081,7 @@ function telaAprovar(){
     (D.usuarios&&!D.usuarios.some(function(u){return String(u.perfil||'').toLowerCase().replace('crédito','credito')==='credito'&&u.ativo;})?'<div class="card motivo"><b>Atenção:</b> nenhuma pessoa do crédito ativa. Todo pedido novo passa pelo crédito: cadastre em <b>Representantes</b> (perfil "Crédito (só análise)").</div>':'')+
     (lib.length?'<h3 style="margin:18px 0 8px">Liberados com o peso: avisar o representante ('+lib.length+')</h3><p class="dica">O peso foi cadastrado (na planilha ou em outro pedido) e estes pedidos foram liberados. Clique <b>Avisar o representante</b>: sai o romaneio e a mensagem de WhatsApp.</p>'+
       lib.map(function(p){ return cartaoGestor(p,false); }).join(''):'')+
-    (peso.length?'<h3 style="margin:18px 0 8px">Aguardando o peso por peça ('+peso.length+')</h3><p class="dica">Aprovados, mas algum modelo está sem o peso por peça. Clique <b>Informar peso</b> (ou o diretor cadastra na planilha): aí sai o romaneio e o aviso ao representante.</p>'+
+    (peso.length?'<h3 style="margin:18px 0 8px">Aguardando o peso por peça ('+peso.length+')</h3><p class="dica">Algum modelo destes pedidos está sem o peso por peça. Só o Diretor cadastra (na planilha) e ele já recebeu um e-mail; se demorar, clique <b>Cobrar o Diretor no WhatsApp</b>. Assim que o peso for salvo, o pedido aparece aqui para você aprovar.</p>'+
       peso.map(function(p){ return cartaoGestor(p,false); }).join(''):'')+
     (neg.length?'<h3 style="margin:18px 0 8px">Não liberados pelo crédito ('+neg.length+')</h3><p class="dica">Só o gestor pode liberar a venda. Liberando, ela volta para a sua aprovação normal.</p>'+
       neg.map(function(p){ return cartaoGestor(p,false).replace('<div class="acoes">','<div class="acoes"><button class="btn verm" onclick="recusar(\''+p.id+'\')">Recusar a venda</button><button class="btn verde" onclick="liberarVenda(\''+p.id+'\')">Liberar a venda</button>'); }).join(''):'')+
@@ -1149,7 +1157,7 @@ function aprovar(id,b){
   if(mesSel<hojeLocal().slice(0,7) && !confirm('Este pedido vai entrar na planilha em '+NOMES_MES[Number(mesSel.slice(5,7))-1]+'/'+mesSel.slice(0,4)+' (mês anterior ao atual).\n\nSe esse mês já foi fechado, os números dele vão mudar. Confirma?')) return;
   ocupado(b,true,'Aprovando…');
   chamar('decidir',TOKEN,id,true,'',{mes:$('aj_mes_'+id).value,entrega:$('aj_ent_'+id).value},p?p.sit:'').then(function(r){
-    if(r.sit==='Aguardando peso'){ recarregar().catch(function(){}); abrirPeso(id, r.faltaPeso); return; }
+    if(r.sit==='Aguardando peso'){ recarregar().then(function(){ aviso('Falta o peso por peça de '+(r.faltaPeso||[]).join(', ')+': o pedido espera o Diretor cadastrar na planilha.',true); }).catch(function(){}); return; }
     posDecisao(id,r,'aprovado');
   }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para aprovar é preciso internet.':e.message,true); ocupado(b,false); if(/mudou/.test(e.message)) recarregar().catch(function(){}); });
 }
