@@ -211,6 +211,7 @@
       <div class="marca">Portal de Pedidos<small id="subMarca">Pedidos</small></div>
       <div class="esp"></div>
       <div class="quem" id="quem"></div>
+      <button class="sairbtn" id="bAtualizar" title="Buscar os dados novos e a versão nova do app">↻ Atualizar</button>
       <button class="sairbtn" id="bSair">Sair</button>
     </div>
     <nav class="abas" id="abas"></nav>
@@ -417,6 +418,22 @@ $('fLogin').addEventListener('submit',function(e){
     TOKEN=r.token; guardar('elloin_token',TOKEN); $('lSenha').value=''; return iniciar();
   }).catch(function(e){ aviso(semSinal(e)?'Sem sinal: para entrar é preciso ter internet (só na primeira vez ou depois de sair).':e.message,true); }).then(function(){ ocupado(b,false); });
 });
+/* botão Atualizar (topo): dados novos do servidor + versão nova do app (se houver) */
+var ATUALIZANDO_APP=false;
+$('bAtualizar').addEventListener('click',function(){
+  var b=this;
+  if(FORM_SUJO && !confirm('Você está preenchendo algo nesta tela. Atualizar agora apaga o que foi digitado (pedidos já salvos no aparelho não se perdem). Atualizar mesmo assim?')) return;
+  if(!ONLINE){ aviso('Sem sinal: para atualizar é preciso internet. O que está no aparelho continua aqui.',true); return; }
+  ocupado(b,true,'Atualizando…');
+  var sw=('serviceWorker' in navigator && navigator.serviceWorker.controller) ? navigator.serviceWorker.getRegistration().then(function(r){ if(r){ ATUALIZANDO_APP=true; return r.update().then(function(){ ATUALIZANDO_APP=!!(r.installing||r.waiting); }); } }).catch(function(){}) : Promise.resolve();
+  sw.then(function(){ return recarregar(); }).then(function(){ aviso('Atualizado.'); })
+    .catch(function(e){ aviso(semSinal(e)?'Sem sinal: para atualizar é preciso internet. O que está no aparelho continua aqui.':e.message,true); })
+    .then(function(){ ocupado(b,false); });
+});
+if('serviceWorker' in navigator){
+  var TINHA_SW=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){ if(TINHA_SW && ATUALIZANDO_APP){ ATUALIZANDO_APP=false; location.reload(); } });
+}
 $('bSair').addEventListener('click',function(){
   var n=pendentes().length;
   if(n && !confirm('Há '+n+' item(ns) ainda não enviado(s). Eles continuam guardados neste aparelho e vão quando você entrar de novo com sinal. Sair mesmo assim?')) return;
@@ -1140,17 +1157,19 @@ var TAB_SEL = '(todos)';
 function telaPrecos(){
   var reps=[]; (D.usuarios||[]).forEach(function(u){ if(u.perfil==='rep' && u.vendedor && reps.indexOf(u.vendedor)<0) reps.push(u.vendedor); });
   var pad=(D.precos||{})['(todos)']||{}, dele=TAB_SEL==='(todos)'?pad:((D.precos||{})[TAB_SEL]||{});
+  var auto=!!D.precoAuto && TAB_SEL==='(todos)';
   $('conteudo').innerHTML='<div class="card"><h2>Tabela de preços (preço mínimo de venda)</h2>'+
+    (D.precoAuto?'<div class="aviso"><b>Tabela padrão automática</b> (vem da planilha de fechamento): '+esc(D.precoAuto.info)+'. Atualizada em '+dhbr(D.precoAuto.em)+'. Ela se atualiza sozinha quando o custo do mês muda. Para um representante, escolha a tabela dele.</div>':'')+
     '<p class="dica">Abaixo destes valores o representante é avisado e o pedido chega para você com alerta. A tabela padrão vale para todos; na tabela de um representante, o que ficar vazio usa a padrão.</p>'+
     '<div class="filtros"><select id="tSel"><option value="(todos)">Tabela padrão (todos os representantes)</option>'+reps.map(function(r){ return '<option value="'+esc(r)+'"'+(r===TAB_SEL?' selected':'')+'>Tabela de '+esc(r)+'</option>'; }).join('')+'</select></div>'+
     '<table class="it"><tr><th>Modelo</th><th class="n">Preço mínimo (R$)</th></tr>'+
     D.modelos.map(function(m,k){ var v=dele[normNome(m.nome)], ph=TAB_SEL!=='(todos)'&&pad[normNome(m.nome)]?'padrão '+fmtValor(pad[normNome(m.nome)]):'0,00';
-      return '<tr><td>'+esc(m.nome)+'</td><td class="n"><input class="tPreco" data-m="'+esc(m.nome)+'" inputmode="numeric" pattern="[0-9]*" placeholder="'+esc(ph)+'" value="'+(v?esc(fmtValor(v)):'')+'" style="max-width:150px;text-align:right"></td></tr>'; }).join('')+
-    '</table><div class="acoes">'+(TAB_SEL!=='(todos)'?'<button class="btn claro" id="tCopiar">Copiar a tabela padrão</button>':'')+'<button class="btn prim" id="tSalvar">Salvar tabela</button></div></div>';
+      return '<tr><td>'+esc(m.nome)+'</td><td class="n"><input class="tPreco" data-m="'+esc(m.nome)+'" inputmode="numeric" pattern="[0-9]*" placeholder="'+esc(auto?'sem custo':ph)+'" value="'+(v?esc(fmtValor(v)):'')+'"'+(auto?' readonly':'')+' style="max-width:150px;text-align:right"></td></tr>'; }).join('')+
+    '</table><div class="acoes">'+(TAB_SEL!=='(todos)'?'<button class="btn claro" id="tCopiar">Copiar a tabela padrão</button>':'')+(auto?'':'<button class="btn prim" id="tSalvar">Salvar tabela</button>')+'</div></div>';
   cada(document.querySelectorAll('.tPreco'),function(i){ i.addEventListener('input',function(){ mascaraValor(i); }); });
   $('tSel').value=TAB_SEL; $('tSel').onchange=function(){ TAB_SEL=this.value; telaPrecos(); };
   if($('tCopiar')) $('tCopiar').onclick=function(){ cada(document.querySelectorAll('.tPreco'),function(i){ var v=pad[normNome(i.getAttribute('data-m'))]; if(v) i.value=fmtValor(v); }); };
-  $('tSalvar').onclick=function(){
+  if($('tSalvar')) $('tSalvar').onclick=function(){
     var b=this, lista=Array.prototype.map.call(document.querySelectorAll('.tPreco'),function(i){ return {modelo:i.getAttribute('data-m'), preco:i.value.trim()}; });
     ocupado(b,true,'Salvando…');
     chamar('salvarPrecos',TOKEN,TAB_SEL==='(todos)'?'':TAB_SEL,lista).then(function(r){ D.precos=r.precos; guardar('elloin_dados',JSON.stringify(D)); aviso('Tabela salva. Os representantes recebem na próxima vez que abrirem o app com sinal.'); telaPrecos(); })
